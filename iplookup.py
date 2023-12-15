@@ -12,8 +12,11 @@ from modules.ipwhois import get_ipwhois
 from modules.spamlookup import spam_lookup
 from modules.graylog import graylog_search
 from modules.defender import get_aad_token, search_remote_ip, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException
-# todo add graylog, azure, defender, ipinfo, hakrevdns, anyrun, urlscan.io, fortiguard, abuse.ch
+from modules.azurelogs import get_azure_signinlogs
 
+# todo add graylog, azure, defender, ipinfo, hakrevdns, anyrun, urlscan.io, fortiguard, abuse.ch
+# https://exchange.xforce.ibmcloud.com
+# curl -X GET --header 'Accept: application/json' -u {API_KEY:API_PASSWORD} 'https://exchange.xforce.ibmcloud.com/api/url/foourl.com'
 try:
 	from loguru import logger
 except ImportError as e:
@@ -31,6 +34,9 @@ if __name__ == '__main__':
 	parsedargs.add_argument('--graylog', help="search in graylog", action='store_true', default=False)
 	parsedargs.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False)
 	parsedargs.add_argument('--defender', help="search in defender", action='store_true', default=False)
+	parsedargs.add_argument('--azure', help="search azurelogs", action='store_true', default=False)
+
+	parsedargs.add_argument('--maxoutput', help="limit output", default=10)
 	parsedargs.add_argument('--all', help="use all lookups", action='store_true', default=False)
 	args = parsedargs.parse_args()
 	vtinfo = None
@@ -56,6 +62,7 @@ if __name__ == '__main__':
 		args.spam = True
 		args.defender = True
 		args.graylog = True
+		args.azure = True
 
 	if args.ipwhois and ipaddress:
 		whois_info = get_ipwhois(args.host)
@@ -79,8 +86,7 @@ if __name__ == '__main__':
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
 		results = graylog_search(query=searchquery, range=86400)
 		print(f'graylog results: {results.total_results}')
-
-		for res in results.messages:
+		for res in results.messages[:args.maxoutput]:
 			print(f'\t{res.get("message").get('timestamp')} {res.get("message").get('msg')} {res.get("message").get('action')} {res.get("message").get('srcip')} {res.get("message").get('dstip')} {res.get("message").get('url')}')
 	if args.ftgd_blk:
 		searchquery = f'eventtype:ftgd_blk'
@@ -91,9 +97,17 @@ if __name__ == '__main__':
 		indicators = get_indicators(token, args.host)
 		for addr in ipaddres_set:
 			defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
-			print(f'\tchecking {addr} defender: {len(defenderdata.get("Results"))}')			
+			if len(defenderdata.get("Results")) > 0:
+				print(f'\tdeviceNetworkEvents for {addr} hits: {len(defenderdata.get("Results"))}')
 			[print(f'\tindicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
-
+	if args.azure:
+		logdata = get_azure_signinlogs(args.host)
+		print(f'azure signinlogs: {len(logdata)}')
+		if len(logdata) > 0:			
+			for logentry in logdata[:args.maxoutput]:
+				timest = logentry.get('TimeGenerated')
+				status = json.loads(logentry.get('Status'))
+				print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 	if args.defender:
 		try:
 			token = get_aad_token()
@@ -117,7 +131,7 @@ if __name__ == '__main__':
 				defenderdata = search_DeviceNetworkEvents(token, args.host, limit=100, maxdays=3)
 				print(f"defender results: {len(defenderdata.get('Results'))}")
 				results = defenderdata.get('Results')
-				for res in results:
+				for res in results[:args.maxoutput]:
 					print(f"\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
