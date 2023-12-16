@@ -54,7 +54,7 @@ if __name__ == '__main__':
 		print(f"vt url info {len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
 		for vendor in resultdata:
 			if resultdata.get(vendor).get('category') == 'malicious':
-				print(f'Vendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ')
+				print(f"Vendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
 	if args.all:
 		args.ipwhois = True
 		args.virustotal = True
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 			print(f'vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
-					print(f'Vendor: {vendor} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ')
+					print(f"Vendor: {vendor} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
 	if args.abuseipdb and ipaddress:
 		abuseipdbdata = get_abuseipdb_data(args.host)
 		if abuseipdbdata:
@@ -87,7 +87,7 @@ if __name__ == '__main__':
 		results = graylog_search(query=searchquery, range=86400)
 		print(f'graylog results: {results.total_results}')
 		for res in results.messages[:args.maxoutput]:
-			print(f'\t{res.get("message").get('timestamp')} {res.get("message").get('msg')} {res.get("message").get('action')} {res.get("message").get('srcip')} {res.get("message").get('dstip')} {res.get("message").get('url')}')
+			print(f"\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
 	if args.ftgd_blk:
 		searchquery = f'eventtype:ftgd_blk'
 		results = graylog_search(query=searchquery, range=86400)
@@ -103,7 +103,7 @@ if __name__ == '__main__':
 	if args.azure:
 		logdata = get_azure_signinlogs(args.host)
 		print(f'azure signinlogs: {len(logdata)}')
-		if len(logdata) > 0:			
+		if len(logdata) > 0:
 			for logentry in logdata[:args.maxoutput]:
 				timest = logentry.get('TimeGenerated')
 				status = json.loads(logentry.get('Status'))
