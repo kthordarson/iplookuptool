@@ -14,7 +14,7 @@ from modules.ipwhois import get_ipwhois
 from modules.spamlookup import spam_lookup
 from modules.graylog import graylog_search
 from modules.defender import get_aad_token, search_remote_ip, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException
-from modules.azurelogs import get_azure_signinlogs
+from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 from modules.xforce import get_xforce_ipreport
 from modules.urlscanio import search_urlscanio
 
@@ -144,6 +144,7 @@ if __name__ == '__main__':
 				[print(f'\tindicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
 				defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
+				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = graylog_search(query=glq, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
@@ -159,6 +160,12 @@ if __name__ == '__main__':
 				if len(azuredata) > 0:
 					print(f'azure found {len(azuredata)}')
 					for logentry in azuredata[:args.maxoutput]:
+						timest = logentry.get('TimeGenerated')
+						status = json.loads(logentry.get('Status'))
+						print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+				if len(azuredata_f) > 0:
+					print(f'azure failed signins found {len(azuredata_f)}')
+					for logentry in azuredata_f[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
 						status = json.loads(logentry.get('Status'))
 						print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
