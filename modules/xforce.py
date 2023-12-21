@@ -4,8 +4,8 @@ import requests
 import json
 # https://api.xforce.ibmcloud.com/doc/
 
-# Lance Mueller
-# July 21, 2016
+# https://exchange.xforce.ibmcloud.com
+# curl -X GET --header 'Accept: application/json' -u {API_KEY:API_PASSWORD} 'https://exchange.xforce.ibmcloud.com/api/url/foourl.com'
 
 import requests
 import sys
