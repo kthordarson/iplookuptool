@@ -17,9 +17,9 @@ from modules.defender import get_aad_token, search_remote_ip, search_DeviceNetwo
 from modules.azurelogs import get_azure_signinlogs
 from modules.xforce import get_xforce_ipreport
 
-# todo add graylog, azure, defender, ipinfo, hakrevdns, anyrun, urlscan.io, fortiguard, abuse.ch
-# https://exchange.xforce.ibmcloud.com
-# curl -X GET --header 'Accept: application/json' -u {API_KEY:API_PASSWORD} 'https://exchange.xforce.ibmcloud.com/api/url/foourl.com'
+# todo: ipinfo, hakrevdns, anyrun, urlscan.io, fortiguard, abuse.ch, https://botscout.com/api.htm
+# done: graylog, azure, defender, https://exchange.xforce.ibmcloud.com
+
 try:
 	from loguru import logger
 except ImportError as e:

@@ -28,8 +28,8 @@ def get_aad_token():
 	returns aadtoken
 	Must set enviorment variables with valid credentials for the registered azure enterprise application
 	"""
-	AppID = os.environ.get('AZURE_CLIENT_ID') 
-	TenantID = os.environ.get('AZURE_TENANT_ID') 
+	AppID = os.environ.get('AZURE_CLIENT_ID')
+	TenantID = os.environ.get('AZURE_TENANT_ID')
 	Value = os.environ.get('AZURE_CLIENT_SECRET')
 	if not AppID or not TenantID or not Value:
 		raise TokenException(f'Missing authinfo....')
@@ -57,6 +57,23 @@ def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	#query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
 	query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents, DeviceFileEvents, DeviceLogonEvents, DeviceEvents, EmailEvents, IdentityLogonEvents, IdentityQueryEvents, IdentityDirectoryEvents, CloudAppEvents, AADSignInEventsBeta, AADSpnSignInEventsBeta) Timestamp between (ago({maxdays}d) .. now()) and RemoteIP == ip | take {limit} """
+	data = json.dumps({'Query': query}).encode("utf-8")
+	# print(f'query = {query}')
+	headers = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json',
+		'Authorization': "Bearer " + aadtoken
+	}
+	req = urllib.request.Request(url, data, headers)
+	resp = urllib.request.urlopen(req)
+	jresp = json.loads(resp.read())
+	# print(f"results: {len(jresp.get('Results'))}")
+	return jresp
+
+def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
+	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
+	#query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
+	query = f"""let remoteurl = "{remoteurl}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and RemoteUrl contains remoteurl | take {limit} """
 	data = json.dumps({'Query': query}).encode("utf-8")
 	# print(f'query = {query}')
 	headers = {
