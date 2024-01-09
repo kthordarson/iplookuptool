@@ -7,7 +7,6 @@ import socket
 import json
 from ipaddress import ip_address
 from myglapi.rest import ApiException
-
 from modules.virustotal import get_virustotal_info, get_virustotal_comments, get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
@@ -112,14 +111,15 @@ if __name__ == '__main__':
 
 	if args.graylog:
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
+		results = None
 		try:
 			results = graylog_search(query=searchquery, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
-			results = None
 		except Exception as e:
-			logger.error(f'graylog search error: {e} {type(e)}')
-			results = None
+			logger.error(f'unhandled: {type(e)} {e} ')
+		if not results:
+			logger.warning(f'no graylog results for {searchquery}')
 		if results:
 			print(f'graylog results: {results.total_results}')
 			for res in results.messages[:args.maxoutput]:
@@ -127,14 +127,15 @@ if __name__ == '__main__':
 
 	if args.sslvpnloginfail:
 		searchquery = 'action:ssl-login-fail'
+		results = None
 		try:
 			results = graylog_search(query=searchquery, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
-			results = None
 		except Exception as e:
 			logger.error(f'graylog search error: {e} {type(e)}')
-			results = None
+		if not results:
+			logger.warning(f'no graylog results for {searchquery}')
 		if results:
 			ipaddres_set = set([k.get('message').get('remip') for k in results.messages])
 			print(f'graylog sslvpnloginfail results: {results.total_results} ipaddres_set: {len(ipaddres_set)}')

@@ -11,6 +11,7 @@ from myglapi.rest import ApiException
 from myglapi import rest
 def graylog_search(query, range=86400):
 	search = SearchuniversalrelativeApi()
+	# logger.debug(f'graylog {search}: {query} {range}')
 	# q='RemoteMGNT'
 	# range=(86400)
 	res = None
@@ -18,13 +19,15 @@ def graylog_search(query, range=86400):
 		res = search.search_relative(query, range)
 	except (ApiException, rest.ApiException) as e:
 		# logger.warning(f'graylog search error: {e} {type(e)}')
-		raise ApiException(e)
+		return None
+		#raise ApiException(e)
 	except MaxRetryError as e:
 		# warning.error(f'graylog search error: {e} {type(e)}')
-		raise ApiException(e)
+		return None
+		# raise ApiException(e)
 	except Exception as e:
-		# logger.error(f'graylog search error: {e} {type(e)}')
-		raise e
+		logger.error(f'unhandled: {type(e)} {e} ')
+		return None
 	# logger.info(f'[s] searchres: {res.total_results} q={query} range={range}')
 	return res
 
