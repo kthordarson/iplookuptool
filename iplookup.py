@@ -147,12 +147,6 @@ if __name__ == '__main__':
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				glres = graylog_search(query=glq, range=86400)
-				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
-				if glres.total_results > 0:
-					print(f'graylog results: {glres.total_results}')
-					for res in glres.messages[:args.maxoutput]:
-						print(f"\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
 				if len(defenderdata.get("Results")) > 0:
 					print(f'defender found {len(defenderdata.get("Results"))} for {addr}')
 					results = defenderdata.get('Results')
@@ -219,12 +213,13 @@ if __name__ == '__main__':
 
 	if args.azure:
 		logdata = get_azure_signinlogs(args.host)
-		print(f'azure signinlogs: {len(logdata)}')
-		if len(logdata) > 0:
-			for logentry in logdata[:args.maxoutput]:
-				timest = logentry.get('TimeGenerated')
-				status = json.loads(logentry.get('Status'))
-				print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+		if len(logdata) >= 1:
+			print(f'azure signinlogs: {len(logdata)}')
+			if len(logdata) > 0:
+				for logentry in logdata[:args.maxoutput]:
+					timest = logentry.get('TimeGenerated')
+					status = json.loads(logentry.get('Status'))
+					print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.defender:
 		try:
@@ -243,14 +238,15 @@ if __name__ == '__main__':
 				indx = [k for k in indicators if k.get('indicatorValue') == args.host]
 				for ind in indx:
 					print(f'indicator found: type: {ind.get("indicatorType")} {ind.get("action")} {ind.get("createdBy")}')
-			else:
-				print(f'no indicator found: {len(indicators)}')
+#			else:
+#				print(f'no indicator found')
 			try:
 				defenderdata = search_DeviceNetworkEvents(token, args.host, limit=100, maxdays=3)
-				print(f"defender results: {len(defenderdata.get('Results'))}")
-				results = defenderdata.get('Results')
-				for res in results[:args.maxoutput]:
-					print(f"\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
+				if len(defenderdata.get('Results')) >= 1:
+					print(f"defender results: {len(defenderdata.get('Results'))}")
+					results = defenderdata.get('Results')
+					for res in results[:args.maxoutput]:
+						print(f"\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)
