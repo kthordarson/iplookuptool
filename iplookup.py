@@ -38,6 +38,7 @@ if __name__ == '__main__':
 	parsedargs.add_argument('-us', '--urlscanio', help="urlscanio lookup", action='store_true', default=False, dest='urlscanio')
 	parsedargs.add_argument('--graylog', help="search in graylog", action='store_true', default=False, dest='graylog')
 	parsedargs.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False, dest='ftgd_blk')
+	parsedargs.add_argument('--sslvpnloginfail', help="get sslvpnloginfail from graylog", action='store_true', default=False, dest='sslvpnloginfail')
 	parsedargs.add_argument('-def', '--defender', help="search in defender", action='store_true', default=False, dest='defender')
 	parsedargs.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
 	parsedargs.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
@@ -115,7 +116,7 @@ if __name__ == '__main__':
 			results = graylog_search(query=searchquery, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
-			raise e
+			results = None
 		except Exception as e:
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
@@ -123,6 +124,52 @@ if __name__ == '__main__':
 			print(f'graylog results: {results.total_results}')
 			for res in results.messages[:args.maxoutput]:
 				print(f"\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
+
+	if args.sslvpnloginfail:
+		searchquery = 'action:ssl-login-fail'
+		try:
+			results = graylog_search(query=searchquery, range=86400)
+		except ApiException as e:
+			logger.warning(f'graylog search error: {e}')
+			results = None
+		except Exception as e:
+			logger.error(f'graylog search error: {e} {type(e)}')
+			results = None
+		if results:
+			ipaddres_set = set([k.get('message').get('remip') for k in results.messages])
+			print(f'graylog sslvpnloginfail results: {results.total_results} ipaddres_set: {len(ipaddres_set)}')
+			for res in results.messages[:args.maxoutput]:
+				print(f"\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('user')} {res.get('message').get('remip')} {res.get('message').get('source')}")
+			token = get_aad_token()
+			for addr in ipaddres_set:
+				print(f'serching logs for {addr}')
+				defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
+				azuredata = get_azure_signinlogs(addr)
+				azuredata_f = get_azure_signinlogs_failed(addr)
+				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
+				glres = graylog_search(query=glq, range=86400)
+				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
+				if glres.total_results > 0:
+					print(f'graylog results: {glres.total_results}')
+					for res in glres.messages[:args.maxoutput]:
+						print(f"\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
+				if len(defenderdata.get("Results")) > 0:
+					print(f'defender found {len(defenderdata.get("Results"))} for {addr}')
+					results = defenderdata.get('Results')
+					for res in results[:args.maxoutput]:
+						print(f"\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
+				if len(azuredata) > 0:
+					print(f'azure found {len(azuredata)}')
+					for logentry in azuredata[:args.maxoutput]:
+						timest = logentry.get('TimeGenerated')
+						status = json.loads(logentry.get('Status'))
+						print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+				if len(azuredata_f) > 0:
+					print(f'azure failed signins found {len(azuredata_f)}')
+					for logentry in azuredata_f[:args.maxoutput]:
+						timest = logentry.get('TimeGenerated')
+						status = json.loads(logentry.get('Status'))
+						print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.ftgd_blk:
 		searchquery = f'eventtype:ftgd_blk'
