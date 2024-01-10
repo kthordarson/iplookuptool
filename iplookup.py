@@ -13,7 +13,7 @@ from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
 from modules.spamlookup import spam_lookup
 from modules.graylog import graylog_search
-from modules.defender import get_aad_token, search_remote_ip, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException
+from modules.defender import get_aad_token, search_remote_ip, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException, search_remote_url
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 from modules.xforce import get_xforce_ipreport
 from modules.urlscanio import search_urlscanio
@@ -30,6 +30,7 @@ except ImportError as e:
 if __name__ == '__main__':
 	parsedargs = argparse.ArgumentParser(description="ip address lookup")
 	parsedargs.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
+	parsedargs.add_argument('--url', help="url to lookup", type=str, metavar='url')
 	parsedargs.add_argument('--vturl', help="virustotal url lookup", type=str )
 	parsedargs.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
 	parsedargs.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
@@ -51,8 +52,9 @@ if __name__ == '__main__':
 	try:
 		ipaddress = ip_address(args.host).exploded
 	except ValueError as e:
-		logger.warning(f'[!] {e} {type(e)} for address {args.host}')
+		# logger.warning(f'[!] {e} {type(e)} for address {args.host}')
 		ipaddress = None
+
 	if args.all:
 		args.ipwhois = True
 		args.virustotal = True
@@ -62,6 +64,30 @@ if __name__ == '__main__':
 		args.graylog = True
 		args.azure = True
 		args.urlscanio = True
+		args.xforce = True
+
+	if args.url:
+		# search logs for remoteurl
+		infourl = get_virustotal_scanurls(args.url)
+		print(f'getting info from vt url: {infourl}')
+		vturlinfo = get_virustotal_urlinfo(infourl)
+		resultdata = vturlinfo.get('data').get('attributes').get('results')
+		print(f"vt url info {len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
+		for vendor in resultdata:
+			if resultdata.get(vendor).get('category') == 'malicious':
+				print(f"\tVendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
+		try:
+			token = get_aad_token()
+			defenderdata = search_remote_url(args.url, token, limit=100, maxdays=3)
+			if len(defenderdata.get('Results')) >= 1:
+				print(f"defender results: {len(defenderdata.get('Results'))}")
+				results = defenderdata.get('Results')
+				for res in results[:args.maxoutput]:
+					print(f"\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
+		except (DefenderException, TokenException) as e:
+			logger.error(e)
+			os._exit(-1)
+
 
 	if args.urlscanio:
 		urlscandata = search_urlscanio(args.host)
@@ -147,6 +173,8 @@ if __name__ == '__main__':
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
+				glres = graylog_search(query=glq, range=86400)
+				print(f'\tresults for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.total_results}')
 				if len(defenderdata.get("Results")) > 0:
 					print(f'defender found {len(defenderdata.get("Results"))} for {addr}')
 					results = defenderdata.get('Results')
