@@ -70,6 +70,22 @@ def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 	# print(f"results: {len(jresp.get('Results'))}")
 	return jresp
 
+def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
+	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
+	query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
+	data = json.dumps({'Query': query}).encode("utf-8")
+	# print(f'query = {query}')
+	headers = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json',
+		'Authorization': "Bearer " + aadtoken
+	}
+	req = urllib.request.Request(url, data, headers)
+	resp = urllib.request.urlopen(req)
+	jresp = json.loads(resp.read())
+	# print(f"results: {len(jresp.get('Results'))}")
+	return jresp
+
 def search_DeviceNetworkEvents(aadtoken, remoteip, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	#query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
