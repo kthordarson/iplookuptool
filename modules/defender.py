@@ -81,7 +81,11 @@ def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 		'Authorization': "Bearer " + aadtoken
 	}
 	req = urllib.request.Request(url, data, headers)
-	resp = urllib.request.urlopen(req)
+	try:
+		resp = urllib.request.urlopen(req)
+	except (ConnectionResetError, urllib.error.URLError) as e:
+		logger.error(f'[search_remote_url] {type(e)} {e} url = {url}')
+		return None
 	jresp = json.loads(resp.read())
 	# print(f"results: {len(jresp.get('Results'))}")
 	return jresp

@@ -6,6 +6,7 @@ import requests
 import socket
 import json
 from ipaddress import ip_address
+from ipwhois.exceptions import HostLookupError, HTTPLookupError
 from myglapi.rest import ApiException
 
 from modules.virustotal import get_virustotal_info, get_virustotal_comments, get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
@@ -65,7 +66,14 @@ if __name__ == '__main__':
 		args.azure = True
 		args.urlscanio = True
 		args.xforce = True
-
+	if ip_address(args.host).is_private:
+		# if ipaddreses is private, skip public lookups
+		args.ipwhois = False
+		args.virustotal = False
+		args.abuseipdb = False
+		args.spam = False
+		args.urlscanio = False
+		args.xforce = False
 	if args.url:
 		# search logs for remoteurl
 		infourl = get_virustotal_scanurls(args.url)
@@ -79,8 +87,8 @@ if __name__ == '__main__':
 		try:
 			token = get_aad_token()
 			defenderdata = search_remote_url(args.url, token, limit=100, maxdays=3)
+			print(f"defender data: {len(defenderdata.get("Results"))} ")
 			if len(defenderdata.get('Results')) >= 1:
-				print(f"defender results: {len(defenderdata.get('Results'))}")
 				results = defenderdata.get('Results')
 				for res in results[:args.maxoutput]:
 					print(f"\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
@@ -91,6 +99,7 @@ if __name__ == '__main__':
 
 	if args.urlscanio:
 		urlscandata = search_urlscanio(args.host)
+		print(f'urlscanio data {len(urlscandata)} results: {urlscandata.get("total")} ')
 
 	if args.xforce:
 		xfi = get_xforce_ipreport(args.host)
@@ -116,15 +125,25 @@ if __name__ == '__main__':
 				print(f"\tVendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
 
 	if args.ipwhois and ipaddress:
-		whois_info = get_ipwhois(args.host)
-		print(f'whois: {whois_info}')
+		if ipaddress.is_globel:
+			whois_info = get_ipwhois(args.host)
+			print(f'whois: {whois_info}')
+		elif ipaddress.is_private:
+			print(f'private address: {ipaddress}')
 
 	if args.virustotal:
 		vtinfo = get_vt_ipinfo(args.host)
 		if vtinfo:
 			vt_las = vtinfo.last_analysis_stats
 			vt_res = vtinfo.last_analysis_results
-			print(f'vt asowner: {vtinfo.as_owner} vtvotes: {vtinfo.total_votes}')
+			try:
+				vt_aso = vtinfo.as_owner
+				vt_tv = vtinfo.total_votes
+			except AttributeError as e:
+				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}' )
+				vt_aso = None
+				vt_tv = None
+			print(f'vt asowner: {vt_aso} vtvotes: {vt_tv}')
 			print(f'vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
@@ -149,9 +168,9 @@ if __name__ == '__main__':
 		if results:
 			print(f'graylog results: {results.total_results}')
 			for res in results.messages[:args.maxoutput]:
-				print(f"\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
+				print(f"\tts:{res.get('message').get('timestamp')} msg:{res.get('message').get('msg')} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} url:{res.get('message').get('url')}")
 
-	if args.sslvpnloginfail:
+	if args.sslvpnloginfail and args.graylog:
 		searchquery = 'action:ssl-login-fail'
 		try:
 			results = graylog_search(query=searchquery, range=86400)
@@ -193,7 +212,7 @@ if __name__ == '__main__':
 						status = json.loads(logentry.get('Status'))
 						print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
-	if args.ftgd_blk:
+	if args.ftgd_blk and args.graylog:
 		searchquery = f'eventtype:ftgd_blk'
 		try:
 			results = graylog_search(query=searchquery, range=86400)
@@ -274,7 +293,7 @@ if __name__ == '__main__':
 					print(f"defender results: {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
 					for res in results[:args.maxoutput]:
-						print(f"\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
+						print(f"{'':2} {res.get('Timestamp')}\n\tdevice: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n\tremoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} ")
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)
