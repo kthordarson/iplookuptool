@@ -125,7 +125,9 @@ if __name__ == '__main__':
 				print(f"\tVendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
 
 	if args.ipwhois and ipaddress:
-		if ipaddress.is_globel:
+		logger.info(f'ipwhois lookup for {args.host} ipaddress: {ipaddress}')
+		ipaddress = ip_address(args.host)
+		if ipaddress.is_global:
 			whois_info = get_ipwhois(args.host)
 			print(f'whois: {whois_info}')
 		elif ipaddress.is_private:
