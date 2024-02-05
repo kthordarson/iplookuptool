@@ -6,6 +6,7 @@ import requests
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+urllib3.disable_warnings(urllib3.exceptions.SSLError)
 
 def get_urlscanio_data(ipaddr):
 	# https://urlscan.io/docs/api/

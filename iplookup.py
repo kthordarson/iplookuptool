@@ -2,12 +2,37 @@
 import sys
 import os
 import argparse
-import requests
-import socket
 import json
-from ipaddress import ip_address
-from ipwhois.exceptions import HostLookupError, HTTPLookupError
-from myglapi.rest import ApiException
+
+try:
+	from loguru import logger
+except ImportError as e:
+	logger.error(f'missing loguru package')
+	os._exit(-1)
+
+try:
+	from colorama import Fore, Back, Style
+except ImportError as e:
+	logger.error(f'missing colorama package')
+	os._exit(-1)
+
+try:
+	from ipaddress import ip_address
+except ImportError as e:
+	logger.error(f'missing ipaddress package')
+	os._exit(-1)
+
+try:
+	from ipwhois.exceptions import HostLookupError, HTTPLookupError
+except ImportError as e:
+	logger.error(f'missing ipwhois package')
+	os._exit(-1)
+
+try:
+	from myglapi.rest import ApiException
+except ImportError as e:
+	logger.error(f'missing myglapi package')
+	os._exit(-1)
 
 from modules.virustotal import get_virustotal_info, get_virustotal_comments, get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
@@ -22,11 +47,6 @@ from modules.urlscanio import search_urlscanio
 # todo urlscan.io, fortiguard, abuse.ch
 # done add graylog, azure, defender, xforce
 
-try:
-	from loguru import logger
-except ImportError as e:
-	logger.error(f'missing loguru package')
-	os._exit(-1)
 
 if __name__ == '__main__':
 	parsedargs = argparse.ArgumentParser(description="ip address lookup")
@@ -77,7 +97,7 @@ if __name__ == '__main__':
 	if args.url:
 		# search logs for remoteurl
 		infourl = get_virustotal_scanurls(args.url)
-		print(f'getting info from vt url: {infourl}')
+		print(f'{Fore.BLUE}getting info from vt url: {infourl}')
 		vturlinfo = get_virustotal_urlinfo(infourl)
 		resultdata = vturlinfo.get('data').get('attributes').get('results')
 		print(f"vt url info {len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
@@ -99,7 +119,7 @@ if __name__ == '__main__':
 
 	if args.urlscanio:
 		urlscandata = search_urlscanio(args.host)
-		print(f'urlscanio data {len(urlscandata)} results: {urlscandata.get("total")} ')
+		print(f'{Fore.BLUE}urlscanio data: {Fore.GREEN}{len(urlscandata)} results: {urlscandata.get("total")} ')
 
 	if args.xforce:
 		xfi = get_xforce_ipreport(args.host)
@@ -112,26 +132,26 @@ if __name__ == '__main__':
 		boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history') ])
 		crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history') ])
 		xscore = xfi.get('score')
-		print(f'xforceinfo score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
+		print(f'{Fore.BLUE}xforceinfo {Fore.GREEN}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
 
 	if args.vturl:
 		infourl = get_virustotal_scanurls(args.vturl)
-		print(f'getting info from vt url: {infourl}')
+		print(f'{Fore.BLUE}getting info from vt url:{Fore.CYAN} {infourl}')
 		vturlinfo = get_virustotal_urlinfo(infourl)
 		resultdata = vturlinfo.get('data').get('attributes').get('results')
-		print(f"vt url info {len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
+		print(f"{Fore.BLUE}vt url info {Fore.GREEN}{len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
 		for vendor in resultdata:
 			if resultdata.get(vendor).get('category') == 'malicious':
-				print(f"\tVendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
+				print(f"{Fore.BLUE}\tVendor: {vendor} {Fore.CYAN}result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
 
 	if args.ipwhois and ipaddress:
-		logger.info(f'ipwhois lookup for {args.host} ipaddress: {ipaddress}')
+		print(f'{Fore.BLUE}ipwhois lookup for {Fore.GREEN}{args.host} ipaddress: {ipaddress}')
 		ipaddress = ip_address(args.host)
 		if ipaddress.is_global:
 			whois_info = get_ipwhois(args.host)
-			print(f'whois: {whois_info}')
+			print(f'{Fore.BLUE}whois:{Fore.GREEN} {whois_info}')
 		elif ipaddress.is_private:
-			print(f'private address: {ipaddress}')
+			print(f'{Fore.YELLOW}private address: {ipaddress}')
 
 	if args.virustotal:
 		vtinfo = get_vt_ipinfo(args.host)
@@ -145,17 +165,16 @@ if __name__ == '__main__':
 				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}' )
 				vt_aso = None
 				vt_tv = None
-			print(f'vt asowner: {vt_aso} vtvotes: {vt_tv}')
-			print(f'vt last_analysis_stats: {vt_las}')
+			print(f'{Fore.BLUE}vt asowner:{Fore.GREEN} {vt_aso} vtvotes: {vt_tv} vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
-					print(f"\tVendor: {vendor} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
+					print(f"{Fore.BLUE}\tVendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
 
 	if args.abuseipdb:
 		abuseipdbdata = get_abuseipdb_data(args.host)
 		if abuseipdbdata:
-			print(f'abuseipdb Reports: {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")}')
-			print(f'\tabuseipdb hostname: {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+			print(f'{Fore.BLUE}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")}')
+			print(f'{Fore.BLUE}\tabuseipdb hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 
 	if args.graylog:
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
@@ -168,9 +187,10 @@ if __name__ == '__main__':
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			print(f'graylog results: {results.total_results}')
+			print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.total_results}')
 			for res in results.messages[:args.maxoutput]:
-				print(f"\tts:{res.get('message').get('timestamp')} msg:{res.get('message').get('msg')} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} url:{res.get('message').get('url')}")
+				print(f"{Fore.BLUE}\tts:{res.get('message').get('timestamp')} {Fore.GREEN} msg:{res.get('message').get('msg')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} url:{res.get('message').get('url')}")
+			print(Style.RESET_ALL)
 
 	if args.sslvpnloginfail and args.graylog:
 		searchquery = 'action:ssl-login-fail'
@@ -263,12 +283,12 @@ if __name__ == '__main__':
 	if args.azure:
 		logdata = get_azure_signinlogs(args.host)
 		if len(logdata) >= 1:
-			print(f'azure signinlogs: {len(logdata)}')
+			print(f'{Fore.BLUE}azure signinlogs:{Fore.GREEN}{len(logdata)}')
 			if len(logdata) > 0:
 				for logentry in logdata[:args.maxoutput]:
 					timest = logentry.get('TimeGenerated')
 					status = json.loads(logentry.get('Status'))
-					print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+					print(f"{Fore.CYAN}\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.defender:
 		try:
@@ -286,16 +306,16 @@ if __name__ == '__main__':
 			if len([k for k in indicators if args.host in  str(k.values())]) >= 1:
 				indx = [k for k in indicators if k.get('indicatorValue') == args.host]
 				for ind in indx:
-					print(f'indicator found: type: {ind.get("indicatorType")} {ind.get("action")} {ind.get("createdBy")}')
-#			else:
-#				print(f'no indicator found')
+					print(f'{Fore.RED}indicator found: type: {ind.get("indicatorType")} {ind.get("action")} {ind.get("createdBy")}')
+			else:
+				print(f'{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			try:
 				defenderdata = search_DeviceNetworkEvents(token, args.host, limit=100, maxdays=3)
 				if len(defenderdata.get('Results')) >= 1:
-					print(f"defender results: {len(defenderdata.get('Results'))}")
+					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
 					for res in results[:args.maxoutput]:
-						print(f"{'':2} {res.get('Timestamp')}\n\tdevice: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n\tremoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} ")
+						print(f"{Fore.CYAN}{'':2} {res.get('Timestamp')}\n\tdevice: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n\tremoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)
