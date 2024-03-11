@@ -67,15 +67,15 @@ def main(args):
 
 	if args.url:
 		# search logs for remoteurl
-		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {args.url} {Style.RESET_ALL}')
+		# print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {args.url} {Style.RESET_ALL}')
 		infourl = get_virustotal_scanurls(args.url)
-		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url: {Fore.CYAN}{infourl}{Style.RESET_ALL}')
+		# print(f'{Fore.LIGHTBLUE_EX}getting info from vt url: {Fore.CYAN}{infourl}{Style.RESET_ALL}')
 		vturlinfo = get_virustotal_urlinfo(infourl)
 		resultdata = vturlinfo.get('data').get('attributes').get('results')
-		print(f"{Fore.LIGHTBLUE_EX}vt url info{Fore.CYAN} {len(resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
+		print(f"{Fore.LIGHTBLUE_EX}vt url info  {Fore.CYAN} {len(resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
 		for vendor in resultdata:
 			if resultdata.get(vendor).get('category') == 'malicious':
-				print(f"{Fore.CYAN}\tVendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
+				print(f"{Fore.CYAN}   Vendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
 		try:
 			token = get_aad_token()
 			defenderdata = search_remote_url(args.url, token, limit=100, maxdays=3)
@@ -83,7 +83,7 @@ def main(args):
 			if len(defenderdata.get('Results')) >= 1:
 				results = defenderdata.get('Results')
 				for res in results[:args.maxoutput]:
-					print(f"{Fore.CYAN}\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+					print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 		except (DefenderException, TokenException) as e:
 			logger.error(e)
 			os._exit(-1)
@@ -104,17 +104,17 @@ def main(args):
 		boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history') ])
 		crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history') ])
 		xscore = xfi.get('score')
-		print(f'{Fore.LIGHTBLUE_EX}xforceinfo {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
+		print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
 
 	if args.vturl:
 		infourl = get_virustotal_scanurls(args.vturl)
 		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}')
 		vturlinfo = get_virustotal_urlinfo(infourl)
 		resultdata = vturlinfo.get('data').get('attributes').get('results')
-		print(f"{Fore.BLUE}vt url info {Fore.GREEN}{len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
+		print(f"{Fore.BLUE}vt url info:  {Fore.GREEN}{len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
 		for vendor in resultdata:
 			if resultdata.get(vendor).get('category') == 'malicious':
-				print(f"{Fore.BLUE}\tVendor: {vendor} {Fore.CYAN}result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
+				print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN}result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
 
 	if args.ipwhois and ipaddress:
 		print(f'{Fore.LIGHTBLUE_EX}ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
@@ -140,13 +140,13 @@ def main(args):
 			print(f'{Fore.LIGHTBLUE_EX}vt asowner:{Fore.CYAN} {vt_aso} vtvotes: {vt_tv} vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
-					print(f"{Fore.BLUE}\tVendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
+					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
 
 	if args.abuseipdb:
 		abuseipdbdata = get_abuseipdb_data(args.host)
 		if abuseipdbdata:
 			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")}')
-			print(f'{Fore.LIGHTBLUE_EX}\tabuseipdb hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+			print(f'{Fore.LIGHTBLUE_EX}   abuseipdb hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 
 	if args.graylog:
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
@@ -162,7 +162,7 @@ def main(args):
 			if results.total_results > 0:
 				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.total_results}')
 				for res in results.messages[:args.maxoutput]:
-					print(f"{Fore.BLUE}\tts:{res.get('message').get('timestamp')} {Fore.GREEN} msg:{res.get('message').get('msg')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} url:{res.get('message').get('url')}")				
+					print(f"   {Fore.BLUE}ts:{res.get('message').get('timestamp')} {Fore.GREEN} srccountry:{res.get('message').get('srccountry')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} service: {res.get('message').get('service')} url:{res.get('message').get('url')}")				
 			else:
 				print(f'{Fore.YELLOW}no graylog data for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 		else:
@@ -182,7 +182,7 @@ def main(args):
 			ipaddres_set = set([k.get('message').get('remip') for k in results.messages])
 			print(f'{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.total_results} ipaddres_set: {len(ipaddres_set)}')
 			for res in results.messages[:args.maxoutput]:
-				print(f"{Fore.YELLOW}\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('user')} {res.get('message').get('remip')} {res.get('message').get('source')}")
+				print(f"{Fore.YELLOW}   {res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('user')} {res.get('message').get('remip')} {res.get('message').get('source')}")
 			token = get_aad_token()
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
@@ -191,24 +191,24 @@ def main(args):
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = graylog_search(query=glq, range=86400)
-				print(f'{Fore.CYAN}\tresults for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.total_results}')
+				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.total_results}')
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW}{len(defenderdata.get("Results"))} for {Fore.CYAN}{addr}')
 					results = defenderdata.get('Results')
 					for res in results[:args.maxoutput]:
-						print(f"{Fore.CYAN}\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
+						print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
 				if len(azuredata) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}azure found {Fore.YELLOW}{len(azuredata)}')
 					for logentry in azuredata[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
 						status = json.loads(logentry.get('Status'))
-						print(f"{Fore.CYAN}\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 				if len(azuredata_f) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}azure failed signins found {Fore.YELLOW}{len(azuredata_f)}')
 					for logentry in azuredata_f[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
 						status = json.loads(logentry.get('Status'))
-						print(f"{Fore.CYAN}\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.ftgd_blk and args.graylog:
 		searchquery = f'eventtype:ftgd_blk'
@@ -227,7 +227,7 @@ def main(args):
 			indicators = get_indicators(token, args.host)
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}')
-				[print(f'{Fore.CYAN}\tindicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
+				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
 				defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
@@ -237,24 +237,24 @@ def main(args):
 				if glres.total_results > 0:
 					print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {glres.total_results}')
 					for res in glres.messages[:args.maxoutput]:
-						print(f"{Fore.CYAN}\t{res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
+						print(f"{Fore.CYAN}   {res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW} {len(defenderdata.get("Results"))} {Fore.LIGHTBLUE_EX}for{Fore.CYAN} {addr}')
 					results = defenderdata.get('Results')
 					for res in results[:args.maxoutput]:
-						print(f"{Fore.CYAN}\t{res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
+						print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
 				if len(azuredata) > 0:
 					print(f'{Fore.LIGHTBLUE_EX} azure found {Fore.YELLOW} {len(azuredata)}')
 					for logentry in azuredata[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
 						status = json.loads(logentry.get('Status'))
-						print(f"\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						print(f"   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 				if len(azuredata_f) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}azure failed signins found {Fore.YELLOW}{len(azuredata_f)}')
 					for logentry in azuredata_f[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
 						status = json.loads(logentry.get('Status'))
-						print(f"{Fore.CYAN}\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.azure:
 		logdata = get_azure_signinlogs(args.host)
@@ -264,7 +264,7 @@ def main(args):
 				for logentry in logdata[:args.maxoutput]:
 					timest = logentry.get('TimeGenerated')
 					status = json.loads(logentry.get('Status'))
-					print(f"{Fore.CYAN}\t {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 			else:
 				print(f'{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 
@@ -294,7 +294,7 @@ def main(args):
 					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
 					for res in results[:args.maxoutput]:
-						print(f"{Fore.CYAN}{'':2} {res.get('Timestamp')}\n\tdevice: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n\tremoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+						print(f"{Fore.CYAN}{'':2} {res.get('Timestamp')}\n   device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n   remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 				else:
 					print(f'{Fore.YELLOW}no defender results for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			except (DefenderException, TokenException) as e:
