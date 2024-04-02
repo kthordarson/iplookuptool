@@ -29,5 +29,9 @@ def search_urlscanio(remoteurl):
 	except requests.exceptions.SSLError as e:
 		logger.error(f"{e} {url} {remoteurl}")
 		return None
-	all_json = response.json()
+	try:
+		all_json = response.json()
+	except Exception as e:
+		logger.error(f"{e} {url} {remoteurl} response: {response.text}")
+		return None
 	return all_json

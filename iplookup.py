@@ -88,10 +88,12 @@ def main(args):
 			logger.error(e)
 			os._exit(-1)
 
-
 	if args.urlscanio:
-		urlscandata = search_urlscanio(args.host)
-		print(f'{Fore.LIGHTBLUE_EX}urlscanio data: {Fore.YELLOW}{len(urlscandata)} {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
+		try:
+			urlscandata = search_urlscanio(args.host)
+			print(f'{Fore.LIGHTBLUE_EX}urlscanio data: {Fore.YELLOW}{len(urlscandata)} {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
+		except Exception as e:
+			logger.error(f'unhandled {type(e)} {e}')
 
 	if args.xforce:
 		xfi = get_xforce_ipreport(args.host)
@@ -145,8 +147,8 @@ def main(args):
 	if args.abuseipdb:
 		abuseipdbdata = get_abuseipdb_data(args.host)
 		if abuseipdbdata:
-			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")}')
-			print(f'{Fore.LIGHTBLUE_EX}   abuseipdb hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+			# print(f'{Fore.LIGHTBLUE_EX}   abuseipdb hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 
 	if args.graylog:
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
@@ -164,7 +166,7 @@ def main(args):
 				for res in results.messages[:args.maxoutput]:
 					print(f"   {Fore.BLUE}ts:{res.get('message').get('timestamp')} {Fore.GREEN} srccountry:{res.get('message').get('srccountry')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} service: {res.get('message').get('service')} url:{res.get('message').get('url')}")				
 			else:
-				print(f'{Fore.YELLOW}no graylog data for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
+				print(f'{Fore.YELLOW}no graylog data ({results.total_results}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 		else:
 			print(f'{Fore.YELLOW}no graylog results for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 
@@ -294,7 +296,7 @@ def main(args):
 					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
 					for res in results[:args.maxoutput]:
-						print(f"{Fore.CYAN}{'':2} {res.get('Timestamp')}\n   device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n   remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+						print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 				else:
 					print(f'{Fore.YELLOW}no defender results for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			except (DefenderException, TokenException) as e:
