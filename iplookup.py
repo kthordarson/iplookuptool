@@ -97,17 +97,19 @@ def main(args):
 
 	if args.xforce:
 		xfi = get_xforce_ipreport(args.host)
-		spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history') ])
-		scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history') ])
-		anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history') ])
-		dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history') ])
-		malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history') ])
-		botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history') ])
-		boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history') ])
-		crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history') ])
-		xscore = xfi.get('score')
-		print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
-
+		try:
+			spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history') ])
+			scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history') ])
+			anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history') ])
+			dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history') ])
+			malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history') ])
+			botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history') ])
+			boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history') ])
+			crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history') ])
+			xscore = xfi.get('score')
+			print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')			
+		except Exception as e:
+			logger.error(f'{e} {type(e)} in xforce')
 	if args.vturl:
 		infourl = get_virustotal_scanurls(args.vturl)
 		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}')
@@ -139,7 +141,21 @@ def main(args):
 				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}' )
 				vt_aso = None
 				vt_tv = None
-			print(f'{Fore.LIGHTBLUE_EX}vt asowner:{Fore.CYAN} {vt_aso} vtvotes: {vt_tv} vt last_analysis_stats: {vt_las}')
+			if vt_tv:
+				malicious = 0
+				try:
+					malicious += vt_tv.get('malicious',0)
+				except Exception as e:
+					logger.error(f'{e} {type(e)}')
+				try:
+					malicious += vt_las.get('malicious',0)
+				except Exception as e:
+					logger.error(f'{e} {type(e)}')
+				if malicious > 0:
+					vtforecolor = Fore.RED
+				else:
+					vtforecolor = Fore.GREEN				
+				print(f'{Fore.LIGHTBLUE_EX}vt asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
 					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
@@ -332,6 +348,8 @@ if __name__ == '__main__':
 	except KeyboardInterrupt as e:
 		logger.error(f'mainerror: {e} {type(e)}')
 	except ValueError as e:
+		logger.error(f'mainerror: {e} {type(e)}')
+	except TypeError as e:
 		logger.error(f'mainerror: {e} {type(e)}')
 	except Exception as e:
 		logger.error(f'mainerror: {e} {type(e)}')
