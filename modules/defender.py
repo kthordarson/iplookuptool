@@ -72,8 +72,7 @@ def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 
 def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
-	#query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
-	query = f"""let remoteurl = "{remoteurl}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and RemoteUrl contains remoteurl | take {limit} """
+	query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
 	data = json.dumps({'Query': query}).encode("utf-8")
 	# print(f'query = {query}')
 	headers = {
@@ -82,7 +81,11 @@ def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 		'Authorization': "Bearer " + aadtoken
 	}
 	req = urllib.request.Request(url, data, headers)
-	resp = urllib.request.urlopen(req)
+	try:
+		resp = urllib.request.urlopen(req)
+	except (ConnectionResetError, urllib.error.URLError) as e:
+		logger.error(f'[search_remote_url] {type(e)} {e} url = {url}')
+		return None
 	jresp = json.loads(resp.read())
 	# print(f"results: {len(jresp.get('Results'))}")
 	return jresp
