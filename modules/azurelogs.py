@@ -1,17 +1,9 @@
 from azure.identity import DefaultAzureCredential
-from azure.monitor.query import LogsQueryClient, LogsQueryStatus, LogsQueryResult
-from azure.monitor.query import LogsQueryStatus
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 import pandas as pd
 import os
 from datetime import timedelta
-import json
-from json import JSONDecodeError
-import urllib.request
-import urllib.parse
-from urllib.error import HTTPError
 from loguru import logger
-import requests
 
 
 def get_azure_signinlogs(ipaddress, resulttype=0):

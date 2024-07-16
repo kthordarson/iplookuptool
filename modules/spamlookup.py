@@ -1,6 +1,4 @@
 import socket
-import os
-import sys
 from loguru import logger
 
 def spam_lookup(ipaddr):
@@ -17,10 +15,8 @@ def spam_lookup(ipaddr):
 			listed+= 1
 		except socket.gaierror as e:
 			logger.error(f'[!] Error: {e} {type(e)} for address {ipaddr}')
-			x = 0
 			return None
 		except Exception as e:
 			logger.error(f'[!] Error: {e} {type(e)} for address {ipaddr}')
-			x = 0
 			return None
 	return [str(listed), l_rbl]	

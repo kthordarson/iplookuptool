@@ -1,15 +1,10 @@
 import os
 import json
-from json import JSONDecodeError
 import urllib.request
 import urllib.parse
 from urllib.error import HTTPError
 import requests
-from io import BytesIO, StringIO
-from datetime import datetime, timedelta
 from loguru import logger
-from html.parser import HTMLParser
-from argparse import ArgumentParser
 
 class SchemaException(Exception):
 	pass
@@ -32,7 +27,7 @@ def get_aad_token():
 	TenantID = os.environ.get('AZURE_TENANT_ID')
 	Value = os.environ.get('AZURE_CLIENT_SECRET')
 	if not AppID or not TenantID or not Value:
-		raise TokenException(f'Missing authinfo....')
+		raise TokenException('Missing authinfo....')
 	url = f"https://login.microsoftonline.com/{TenantID}/oauth2/token"
 	resourceAppIdUri = 'https://api-eu.securitycenter.microsoft.com'
 	body = {'resource': resourceAppIdUri, 'client_id': AppID,
@@ -128,7 +123,7 @@ def get_indicators(aadtoken, host=None):
 			'Authorization': "Bearer " + aadtoken
 		})
 	# baseurl = "https://api-eu.securitycenter.microsoft.com/api/"
-	apiurl = f"https://api-eu.securitycenter.microsoft.com/api/Indicators"
+	apiurl = "https://api-eu.securitycenter.microsoft.com/api/Indicators"
 	try:
 		response = session.get(apiurl)
 	except HTTPError as e:

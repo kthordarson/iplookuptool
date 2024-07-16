@@ -1,6 +1,4 @@
-import socket
 import os
-import sys
 from loguru import logger
 import requests
 
@@ -20,7 +18,7 @@ def search_urlscanio(remoteurl):
 	params = {
 		'q': remoteurl,
 			}
-	url = f'https://urlscan.io/api/v1/search/'
+	url = 'https://urlscan.io/api/v1/search/'
 	try:
 		response = requests.get(url, params=params, headers=headers, timeout=20, verify=False)
 	except requests.exceptions.Timeout as e:

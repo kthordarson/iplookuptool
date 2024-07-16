@@ -1,13 +1,11 @@
-import os
-import sys
 from loguru import logger
 from ipwhois.exceptions import IPDefinedError
 try:
 	from ipwhois import IPWhois
-	from ipwhois.exceptions import HostLookupError, HTTPLookupError
+	from ipwhois.exceptions import HTTPLookupError
 except ImportError as e:
-	logger.error(f'missing ipwhois package')
-	os._exit(-1)
+	logger.error(f'missing ipwhois package {e}')
+	# os._exit(-1)
 
 def get_ipwhois(ipaddr):
 	result = None

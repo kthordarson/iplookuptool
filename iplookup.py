@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import sys
 import os
 import argparse
 import json
@@ -7,39 +6,33 @@ import json
 try:
 	from loguru import logger
 except ImportError as e:
-	logger.error(f'missing loguru package')
+	logger.error(f'{e} missing loguru package')
 	os._exit(-1)
 
 try:
-	from colorama import Fore, Back, Style
+	from colorama import Fore, Style
 except ImportError as e:
-	logger.error(f'missing colorama package')
+	logger.error(f'{e} missing colorama package')
 	os._exit(-1)
 
 try:
 	from ipaddress import ip_address
 except ImportError as e:
-	logger.error(f'missing ipaddress package')
+	logger.error(f'{e} missing ipaddress package')
 	os._exit(-1)
 
-try:
-	from ipwhois.exceptions import HostLookupError, HTTPLookupError
-except ImportError as e:
-	logger.error(f'missing ipwhois package')
-	os._exit(-1)
 
 try:
 	from myglapi.rest import ApiException
 except ImportError as e:
-	logger.error(f'missing myglapi package')
+	logger.error(f'{e} missing myglapi package')
 	os._exit(-1)
 
-from modules.virustotal import get_virustotal_info, get_virustotal_comments, get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
+from modules.virustotal import get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
-from modules.spamlookup import spam_lookup
 from modules.graylog import graylog_search
-from modules.defender import get_aad_token, search_remote_ip, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException, search_remote_url
+from modules.defender import get_aad_token, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException, search_remote_url
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 from modules.xforce import get_xforce_ipreport
 from modules.urlscanio import search_urlscanio
@@ -62,7 +55,7 @@ def main(args):
 	try:
 		ipaddress = ip_address(args.host).exploded
 	except ValueError as e:
-		# logger.warning(f'[!] {e} {type(e)} for address {args.host}')
+		logger.warning(f'[!] {e} {type(e)} for address {args.host}')
 		ipaddress = None
 
 	if args.url:
@@ -229,7 +222,7 @@ def main(args):
 						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.ftgd_blk and args.graylog:
-		searchquery = f'eventtype:ftgd_blk'
+		searchquery = 'eventtype:ftgd_blk'
 		try:
 			results = graylog_search(query=searchquery, range=86400)
 		except ApiException as e:

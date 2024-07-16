@@ -1,16 +1,10 @@
-from loguru import logger
 import os
 import requests
-import json
 # https://api.xforce.ibmcloud.com/doc/
 
 # https://exchange.xforce.ibmcloud.com
 # curl -X GET --header 'Accept: application/json' -u {API_KEY:API_PASSWORD} 'https://exchange.xforce.ibmcloud.com/api/url/foourl.com'
 
-import requests
-import sys
-import json
-from optparse import OptionParser
 import hashlib
 import base64
 

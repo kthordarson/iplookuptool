@@ -1,14 +1,9 @@
 import os
-import sys
-from loguru import logger
-GRAYLOGAPIKEY = os.environ.get('GRAYLOGAPIKEY')
 from urllib3.exceptions import MaxRetryError
-from myglapi.apis.apidocs_api import ApiClient
-from myglapi.apis.systeminputs_api import SysteminputsApi
 from myglapi.apis.searchuniversalrelative_api import SearchuniversalrelativeApi
-from myglapi.apis.streams_api import StreamsApi
 from myglapi.rest import ApiException
 from myglapi import rest
+GRAYLOGAPIKEY = os.environ.get('GRAYLOGAPIKEY')
 def graylog_search(query, range=86400):
 	search = SearchuniversalrelativeApi()
 	# q='RemoteMGNT'
