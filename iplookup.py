@@ -321,25 +321,25 @@ def main(args):
 
 
 if __name__ == '__main__':
-	parsedargs = argparse.ArgumentParser(description="ip address lookup")
-	parsedargs.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
-	parsedargs.add_argument('--url', help="url to lookup", type=str, metavar='url')
-	parsedargs.add_argument('--vturl', help="virustotal url lookup", type=str)
-	parsedargs.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
-	parsedargs.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
-	parsedargs.add_argument('--spam', help="spam lookup", action='store_true', default=False)
-	parsedargs.add_argument('-abip', '--abuseipdb', help="abuseipdb lookup", action='store_true', default=False, dest='abuseipdb')
-	parsedargs.add_argument('-us', '--urlscanio', help="urlscanio lookup", action='store_true', default=False, dest='urlscanio')
-	parsedargs.add_argument('--graylog', help="search in graylog", action='store_true', default=False, dest='graylog')
-	parsedargs.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False, dest='ftgd_blk')
-	parsedargs.add_argument('--sslvpnloginfail', help="get sslvpnloginfail from graylog", action='store_true', default=False, dest='sslvpnloginfail')
-	parsedargs.add_argument('-def', '--defender', help="search in defender", action='store_true', default=False, dest='defender')
-	parsedargs.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
-	parsedargs.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
+	parser = argparse.ArgumentParser(description="ip address lookup")
+	parser.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
+	parser.add_argument('--url', help="url to lookup", type=str, metavar='url')
+	parser.add_argument('--vturl', help="virustotal url lookup", type=str)
+	parser.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
+	parser.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
+	parser.add_argument('--spam', help="spam lookup", action='store_true', default=False)
+	parser.add_argument('-abip', '--abuseipdb', help="abuseipdb lookup", action='store_true', default=False, dest='abuseipdb')
+	parser.add_argument('-us', '--urlscanio', help="urlscanio lookup", action='store_true', default=False, dest='urlscanio')
+	parser.add_argument('--graylog', help="search in graylog", action='store_true', default=False, dest='graylog')
+	parser.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False, dest='ftgd_blk')
+	parser.add_argument('--sslvpnloginfail', help="get sslvpnloginfail from graylog", action='store_true', default=False, dest='sslvpnloginfail')
+	parser.add_argument('-def', '--defender', help="search in defender", action='store_true', default=False, dest='defender')
+	parser.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
+	parser.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
 
-	parsedargs.add_argument('--maxoutput', help="limit output", default=10)
-	parsedargs.add_argument('--all', help="use all lookups", action='store_true', default=False)
-	args = parsedargs.parse_args()
+	parser.add_argument('--maxoutput', help="limit output", default=10)
+	parser.add_argument('--all', help="use all lookups", action='store_true', default=False)
+	args = parser.parse_args()
 	vtinfo = None
 	abuseipdbdata = None
 	try:
