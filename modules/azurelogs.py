@@ -21,7 +21,7 @@ def get_azure_signinlogs(ipaddress, resulttype=0):
         # data = response.tables
         for table in response.tables:
             df = pd.DataFrame(table.rows, columns=[col for col in table.columns])
-            key_value = df.to_dict(orient='records')            
+            key_value = df.to_dict(orient='records')
         # df = pd.DataFrame(data=data[0].rows, columns=data[0].columns)
         # d = json.loads(df.to_json())
         return key_value
@@ -41,7 +41,6 @@ def get_azure_signinlogs_failed(ipaddress):
         for table in response.tables:
             df = pd.DataFrame(table.rows, columns=[col for col in table.columns])
             key_value = df.to_dict(orient='records')
-            
         # df = pd.DataFrame(data=data[0].rows, columns=data[0].columns)
         # d = json.loads(df.to_json())
         return key_value

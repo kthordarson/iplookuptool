@@ -32,7 +32,7 @@ from modules.virustotal import get_virustotal_scanurls, get_virustotal_urlinfo, 
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
 from modules.graylog import graylog_search
-from modules.defender import get_aad_token, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException, search_remote_url
+from modules.defender import get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 from modules.xforce import get_xforce_ipreport
 from modules.urlscanio import search_urlscanio
@@ -89,20 +89,27 @@ def main(args):
 			logger.error(f'unhandled {type(e)} {e}')
 
 	if args.xforce:
-		xfi = get_xforce_ipreport(args.host)
 		try:
-			spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history') ])
-			scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history') ])
-			anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history') ])
-			dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history') ])
-			malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history') ])
-			botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history') ])
-			boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history') ])
-			crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history') ])
-			xscore = xfi.get('score')
-			print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')			
+			xfi = get_xforce_ipreport(args.host)
 		except Exception as e:
-			logger.error(f'{e} {type(e)} in xforce')
+			logger.error(f'xforce error: {e} {type(e)}')
+			return None
+		if xfi.get('error') == 'Not authorized.':
+			logger.error(f'xforce error: {xfi.get("error")}')
+		else:
+			try:
+				spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history')])
+				scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history')])
+				anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history')])
+				dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history')])
+				malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history')])
+				botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history')])
+				boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history')])
+				crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history')])
+				xscore = xfi.get('score')
+				print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
+			except Exception as e:
+				logger.error(f'{e} {type(e)} in xforce xfi: {xfi}')
 	if args.vturl:
 		infourl = get_virustotal_scanurls(args.vturl)
 		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}')
@@ -131,7 +138,7 @@ def main(args):
 				vt_aso = vtinfo.as_owner
 				vt_tv = vtinfo.total_votes
 			except AttributeError as e:
-				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}' )
+				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}')
 				vt_aso = None
 				vt_tv = None
 			if vt_tv:
@@ -147,7 +154,7 @@ def main(args):
 				if malicious > 0:
 					vtforecolor = Fore.RED
 				else:
-					vtforecolor = Fore.GREEN				
+					vtforecolor = Fore.GREEN
 				print(f'{Fore.LIGHTBLUE_EX}vt asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
@@ -173,7 +180,7 @@ def main(args):
 			if results.total_results > 0:
 				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.total_results}')
 				for res in results.messages[:args.maxoutput]:
-					print(f"   {Fore.BLUE}ts:{res.get('message').get('timestamp')} {Fore.GREEN} srccountry:{res.get('message').get('srccountry')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} service: {res.get('message').get('service')} url:{res.get('message').get('url')}")				
+					print(f"   {Fore.BLUE}ts:{res.get('message').get('timestamp')} {Fore.GREEN} srccountry:{res.get('message').get('srccountry')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} service: {res.get('message').get('service')} url:{res.get('message').get('url')}")
 			else:
 				print(f'{Fore.YELLOW}no graylog data ({results.total_results}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 		else:
@@ -197,7 +204,7 @@ def main(args):
 			token = get_aad_token()
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
-				defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
+				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
@@ -239,7 +246,7 @@ def main(args):
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}')
 				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
-				defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
+				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
@@ -279,7 +286,6 @@ def main(args):
 			else:
 				print(f'{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 
-
 	if args.defender:
 		try:
 			token = get_aad_token()
@@ -293,14 +299,14 @@ def main(args):
 				logger.error(e)
 				os._exit(-1)
 			# if len([k for k in indicators if k.get('indicatorValue') == args.host]) <= 1:
-			if len([k for k in indicators if args.host in  str(k.values())]) >= 1:
+			if len([k for k in indicators if args.host in str(k.values())]) >= 1:
 				indx = [k for k in indicators if k.get('indicatorValue') == args.host]
 				for ind in indx:
 					print(f'{Fore.RED}indicator found: type: {ind.get("indicatorType")} {ind.get("action")} {ind.get("createdBy")}')
 			else:
 				print(f'{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			try:
-				defenderdata = search_DeviceNetworkEvents(token, args.host, limit=100, maxdays=3)
+				defenderdata = search_devicenetworkevents(token, args.host, limit=100, maxdays=3)
 				if len(defenderdata.get('Results')) >= 1:
 					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
@@ -311,14 +317,14 @@ def main(args):
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)
-			#print(f'results: {results}')
+			# print(f'results: {results}')
 
 
 if __name__ == '__main__':
 	parsedargs = argparse.ArgumentParser(description="ip address lookup")
 	parsedargs.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
 	parsedargs.add_argument('--url', help="url to lookup", type=str, metavar='url')
-	parsedargs.add_argument('--vturl', help="virustotal url lookup", type=str )
+	parsedargs.add_argument('--vturl', help="virustotal url lookup", type=str)
 	parsedargs.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
 	parsedargs.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
 	parsedargs.add_argument('--spam', help="spam lookup", action='store_true', default=False)
