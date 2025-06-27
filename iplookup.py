@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
+
 import os
 import argparse
 import json
@@ -130,13 +131,14 @@ def main(args):
 			print(f'{Fore.YELLOW}private address: {ipaddress}')
 
 	if args.virustotal:
-		vtinfo = get_vt_ipinfo(args.host)
+		vtinfo = get_vt_ipinfo(args)
 		if vtinfo:
 			vt_las = vtinfo.last_analysis_stats
 			vt_res = vtinfo.last_analysis_results
 			try:
-				vt_aso = vtinfo.as_owner
-				vt_tv = vtinfo.total_votes
+				vt_aso = vtinfo.as_owner if hasattr(vtinfo, 'as_owner') else None
+				# vt_aso = vtinfo.as_owner
+				vt_tv = vtinfo.total_votes if hasattr(vtinfo, 'total_votes') else None
 			except AttributeError as e:
 				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}')
 				vt_aso = None
@@ -144,18 +146,19 @@ def main(args):
 			if vt_tv:
 				malicious = 0
 				try:
-					malicious += vt_tv.get('malicious',0)
+					malicious += int(vt_tv.get('malicious',0))
 				except Exception as e:
 					logger.error(f'{e} {type(e)}')
 				try:
-					malicious += vt_las.get('malicious',0)
+					malicious += int(vt_las.get('malicious',0))
 				except Exception as e:
 					logger.error(f'{e} {type(e)}')
 				if malicious > 0:
 					vtforecolor = Fore.RED
 				else:
 					vtforecolor = Fore.GREEN
-				print(f'{Fore.LIGHTBLUE_EX}vt asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
+				# print(f'{Fore.LIGHTBLUE_EX}vt {args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
+				print(f'{Fore.LIGHTBLUE_EX}vt {args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} malicious: {malicious}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
 					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
@@ -319,8 +322,7 @@ def main(args):
 				os._exit(-1)
 			# print(f'results: {results}')
 
-
-if __name__ == '__main__':
+def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
 	parser.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
 	parser.add_argument('--url', help="url to lookup", type=str, metavar='url')
@@ -339,9 +341,14 @@ if __name__ == '__main__':
 
 	parser.add_argument('--maxoutput', help="limit output", default=10)
 	parser.add_argument('--all', help="use all lookups", action='store_true', default=False)
+	parser.add_argument('--debug', help="debug", action='store_true', default=False)
 	args = parser.parse_args()
+	return parser, args
+
+if __name__ == '__main__':
 	vtinfo = None
 	abuseipdbdata = None
+	parser, args = get_args()
 	try:
 		main(args)
 	except KeyboardInterrupt as e:

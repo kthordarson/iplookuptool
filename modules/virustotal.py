@@ -73,19 +73,19 @@ def get_virustotal_objects(ipaddr, limit=10, relation='comments'):
 	jsonresults = response.json()
 	return jsonresults  # ['data']['attributes']
 
-def get_vt_ipinfo(ipaddr):
+def get_vt_ipinfo(args):
 	vtipinfo = None
 	try:
 		client = Client(VTAPIKEY)
 	except Exception as e:
-		logger.error(f'[!] {e} {type(e)} addr: {ipaddr}')
+		logger.error(f'[!] {e} {type(e)} addr: {args.host}')
 		return None
 	try:
-		vtipinfo = client.get_object(f'/ip_addresses/{ipaddr}')
+		vtipinfo = client.get_object(f'/ip_addresses/{args.host}')
 	# except APIError as e:
 	# 	logger.warning(f'[!] {e} {type(e)} addr: {ipaddr}')
 	except Exception as e:
-		logger.error(f'[!] unhandled {e} {type(e)} addr: {ipaddr}')
+		logger.error(f'[!] unhandled {e} {type(e)} addr: {args.host}')
 		return None
 	client.close()
 	return vtipinfo
