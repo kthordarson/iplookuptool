@@ -32,10 +32,10 @@ except ImportError as e:
 from modules.virustotal import get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
-from modules.graylog import graylog_search
+from modules.graylog import graylog_search, graylog_search_ip
 from modules.defender import get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
-from modules.xforce import get_xforce_ipreport
+# from modules.xforce import get_xforce_ipreport
 from modules.urlscanio import search_urlscanio
 
 # todo urlscan.io, fortiguard, abuse.ch
@@ -89,28 +89,28 @@ def main(args):
 		except Exception as e:
 			logger.error(f'unhandled {type(e)} {e}')
 
-	if args.xforce:
-		try:
-			xfi = get_xforce_ipreport(args.host)
-		except Exception as e:
-			logger.error(f'xforce error: {e} {type(e)}')
-			return None
-		if xfi.get('error') == 'Not authorized.':
-			logger.error(f'xforce error: {xfi.get("error")}')
-		else:
-			try:
-				spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history')])
-				scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history')])
-				anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history')])
-				dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history')])
-				malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history')])
-				botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history')])
-				boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history')])
-				crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history')])
-				xscore = xfi.get('score')
-				print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
-			except Exception as e:
-				logger.error(f'{e} {type(e)} in xforce xfi: {xfi}')
+	# if args.xforce:
+	# 	try:
+	# 		xfi = get_xforce_ipreport(args.host)
+	# 	except Exception as e:
+	# 		logger.error(f'xforce error: {e} {type(e)}')
+	# 		return None
+	# 	if xfi.get('error') == 'Not authorized.':
+	# 		logger.error(f'xforce error: {xfi.get("error")} xfi: {xfi}')
+	# 	else:
+	# 		try:
+	# 			spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history')])
+	# 			scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history')])
+	# 			anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history')])
+	# 			dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history')])
+	# 			malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history')])
+	# 			botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history')])
+	# 			boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history')])
+	# 			crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history')])
+	# 			xscore = xfi.get('score')
+	# 			print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
+	# 		except Exception as e:
+	# 			logger.error(f'{e} {type(e)} in xforce xfi: {xfi}')
 	if args.vturl:
 		infourl = get_virustotal_scanurls(args.vturl)
 		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}')
@@ -172,7 +172,7 @@ def main(args):
 	if args.graylog:
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
 		try:
-			results = graylog_search(query=searchquery, range=86400)
+			results = graylog_search_ip(args.host, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
 			results = None
@@ -180,12 +180,14 @@ def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			if results.total_results > 0:
-				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.total_results}')
-				for res in results.messages[:args.maxoutput]:
-					print(f"   {Fore.BLUE}ts:{res.get('message').get('timestamp')} {Fore.GREEN} srccountry:{res.get('message').get('srccountry')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} service: {res.get('message').get('service')} url:{res.get('message').get('url')}")
+			if results.get('hits').get('total').get('value') > 0:
+				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
+				for res in results.get('hits').get('hits')[:args.maxoutput]:
+					res_msg = res.get('_source')
+					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
+					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
 			else:
-				print(f'{Fore.YELLOW}no graylog data ({results.total_results}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
+				print(f'{Fore.YELLOW}no graylog data ({results.get('hits').get('total').get('value')}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 		else:
 			print(f'{Fore.YELLOW}no graylog results for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 
@@ -200,10 +202,10 @@ def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			ipaddres_set = set([k.get('message').get('remip') for k in results.messages])
-			print(f'{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.total_results} ipaddres_set: {len(ipaddres_set)}')
-			for res in results.messages[:args.maxoutput]:
-				print(f"{Fore.YELLOW}   {res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('user')} {res.get('message').get('remip')} {res.get('message').get('source')}")
+			ipaddres_set = set([k.get('message').get('remip') for k in results.get('hits').get('hits')])
+			print(f'{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}')
+			for res in results.get('hits').get('hits')[:args.maxoutput]:
+				print(f"{Fore.YELLOW}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('user')} {res_msg.get('remip')} {res_msg.get('source')}")
 			token = get_aad_token()
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
@@ -211,8 +213,8 @@ def main(args):
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				glres = graylog_search(query=glq, range=86400)
-				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.total_results}')
+				glres = graylog_search_ip(addr, range=86400)
+				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW}{len(defenderdata.get("Results"))} for {Fore.CYAN}{addr}')
 					results = defenderdata.get('Results')
@@ -242,8 +244,8 @@ def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			ipaddres_set = set([k.get('message').get('dstip') for k in results.messages])
-			print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {results.total_results} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}')
+			ipaddres_set = set([k.get('message').get('dstip') for k in results.get('hits').get('hits')])
+			print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}')
 			token = get_aad_token()
 			indicators = get_indicators(token, args.host)
 			for addr in ipaddres_set:
@@ -253,12 +255,12 @@ def main(args):
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				glres = graylog_search(query=glq, range=86400)
+				glres = graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
-				if glres.total_results > 0:
-					print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {glres.total_results}')
-					for res in glres.messages[:args.maxoutput]:
-						print(f"{Fore.CYAN}   {res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
+				if glres.get('hits').get('total').get('value') > 0:
+					print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}')
+					for res in glres.get('hits').get('hits')[:args.maxoutput]:
+						print(f"{Fore.CYAN}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('srcip')} {res_msg.get('dstip')} {res_msg.get('url')}")
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW} {len(defenderdata.get("Results"))} {Fore.LIGHTBLUE_EX}for{Fore.CYAN} {addr}')
 					results = defenderdata.get('Results')
@@ -357,6 +359,6 @@ if __name__ == '__main__':
 		logger.error(f'mainerror: {e} {type(e)}')
 	except TypeError as e:
 		logger.error(f'mainerror: {e} {type(e)}')
-	except Exception as e:
-		logger.error(f'mainerror: {e} {type(e)}')
+	# except Exception as e:
+	# 	logger.error(f'mainerror: {e} {type(e)}')
 	print(f'{Style.RESET_ALL}')

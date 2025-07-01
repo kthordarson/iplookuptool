@@ -13,6 +13,7 @@ def get_xforce_data(apiurl, scanurl, headers):
 	try:
 		fullurl = apiurl + scanurl
 		response = requests.get(fullurl, params='', headers=headers, timeout=20)
+		logger.debug(f'X-Force response: {response.status_code} {response.text}')
 		all_json = response.json()
 		return all_json
 	except Exception as e:
@@ -47,6 +48,7 @@ def get_token():
 		xpass = os.environ.get("XFORCEAPIPASS")
 
 		t = xapikey + ":" + xpass
+		logger.debug(f'xforce token: {t}')
 		token = base64.b64encode(t.encode('utf8'))
 		return token.decode('utf8')
 	except Exception as e:
