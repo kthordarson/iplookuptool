@@ -191,7 +191,7 @@ def main(args):
 				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
-				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
+				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = graylog_search_ip(addr, range=86400)
 				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')
 				if len(defenderdata.get("Results")) > 0:
@@ -233,7 +233,7 @@ def main(args):
 				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
-				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
+				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
 				if glres.get('hits').get('total').get('value') > 0:
