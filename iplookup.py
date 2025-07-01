@@ -1,34 +1,11 @@
 #!/usr/bin/env python3
-
 import os
 import argparse
 import json
-
-try:
-	from loguru import logger
-except ImportError as e:
-	logger.error(f'{e} missing loguru package')
-	os._exit(-1)
-
-try:
-	from colorama import Fore, Style
-except ImportError as e:
-	logger.error(f'{e} missing colorama package')
-	os._exit(-1)
-
-try:
-	from ipaddress import ip_address
-except ImportError as e:
-	logger.error(f'{e} missing ipaddress package')
-	os._exit(-1)
-
-
-try:
-	from myglapi.rest import ApiException
-except ImportError as e:
-	logger.error(f'{e} missing myglapi package')
-	os._exit(-1)
-
+from loguru import logger
+from colorama import Fore, Style
+from ipaddress import ip_address
+from myglapi.rest import ApiException
 from modules.virustotal import get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
@@ -37,6 +14,8 @@ from modules.defender import get_aad_token, search_devicenetworkevents, get_indi
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 # from modules.xforce import get_xforce_ipreport
 from modules.urlscanio import search_urlscanio
+import urllib3
+urllib3.disable_warnings()
 
 # todo urlscan.io, fortiguard, abuse.ch
 # done add graylog, azure, defender, xforce
@@ -184,7 +163,7 @@ def main(args):
 				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
 				for res in results.get('hits').get('hits')[:args.maxoutput]:
 					res_msg = res.get('_source')
-					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
+					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
 			else:
 				print(f'{Fore.YELLOW}no graylog data ({results.get('hits').get('total').get('value')}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
@@ -281,6 +260,8 @@ def main(args):
 
 	if args.azure:
 		logdata = get_azure_signinlogs(args.host)
+		if args.debug:
+			logger.debug(f'azure signinlogs: {len(logdata)}')
 		if len(logdata) >= 1:
 			print(f'{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(logdata)}')
 			if len(logdata) > 0:
@@ -307,7 +288,7 @@ def main(args):
 			if len([k for k in indicators if args.host in str(k.values())]) >= 1:
 				indx = [k for k in indicators if k.get('indicatorValue') == args.host]
 				for ind in indx:
-					print(f'{Fore.RED}indicator found: type: {ind.get("indicatorType")} {ind.get("action")} {ind.get("createdBy")}')
+					print(f'{Fore.RED}indicator found: {Fore.GREEN} {ind.get("title")} {ind.get("description")} {Fore.LIGHTBLUE_EX}type: {ind.get("indicatorType")} action: {ind.get("action")} {Fore.LIGHTGREEN_EX} created by: {ind.get("createdBy")}')
 			else:
 				print(f'{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			try:
@@ -341,7 +322,7 @@ def get_args():
 	parser.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
 	parser.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
 
-	parser.add_argument('--maxoutput', help="limit output", default=10)
+	parser.add_argument('--maxoutput', help="limit output", default=10, type=int)
 	parser.add_argument('--all', help="use all lookups", action='store_true', default=False)
 	parser.add_argument('--debug', help="debug", action='store_true', default=False)
 	args = parser.parse_args()

@@ -9,7 +9,8 @@ from loguru import logger
 def get_azure_signinlogs(ipaddress, resulttype=0):
     creds = DefaultAzureCredential()
     logclient = LogsQueryClient(creds)
-    query = f'SigninLogs | where IPAddress == "{ipaddress}" | where ResultType == "{resulttype}" | take 100'
+    # query = f'SigninLogs | where IPAddress == "{ipaddress}" | where ResultType == "{resulttype}" | take 100'
+    query = f'SigninLogs | where IPAddress == "{ipaddress}" | take 100'
     logs_resource_id = os.getenv('AZURE_LOGRESOURCE_ID')
     response = logclient.query_resource(logs_resource_id, query, timespan=timedelta(days=1))
     if response.status == LogsQueryStatus.PARTIAL:
