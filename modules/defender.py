@@ -23,34 +23,34 @@ def get_aad_token():
 	returns aadtoken
 	Must set enviorment variables with valid credentials for the registered azure enterprise application
 	"""
-	AppID = os.environ.get('AZURE_CLIENT_ID')
-	TenantID = os.environ.get('AZURE_TENANT_ID')
-	Value = os.environ.get('AZURE_CLIENT_SECRET')
-	if not AppID or not TenantID or not Value:
+	appid = os.environ.get('AZURE_CLIENT_ID')
+	tenantid = os.environ.get('AZURE_TENANT_ID')
+	value = os.environ.get('AZURE_CLIENT_SECRET')
+	if not appid or not tenantid or not value:
 		raise TokenException('Missing authinfo....')
-	url = f"https://login.microsoftonline.com/{TenantID}/oauth2/token"
-	resourceAppIdUri = 'https://api-eu.securitycenter.microsoft.com'
-	body = {'resource': resourceAppIdUri, 'client_id': AppID,
-			'client_secret': Value, 'grant_type': 'client_credentials'}
+	url = f"https://login.microsoftonline.com/{tenantid}/oauth2/token"
+	resourceappiduri = 'https://api-eu.securitycenter.microsoft.com'
+	body = {'resource': resourceappiduri, 'client_id': appid,
+			'client_secret': value, 'grant_type': 'client_credentials'}
 	data = urllib.parse.urlencode(body).encode("utf-8")
 	req = urllib.request.Request(url, data)
 	try:
 		response = urllib.request.urlopen(req)
 	except HTTPError as e:
 		logger.error(e)
-		raise TokenException(f'{e} {type(e)} Error getting token appid:{AppID} tid:{TenantID} v:{Value} ')
+		raise TokenException(f'{e} {type(e)} Error getting token appid:{appid} tid:{tenantid} v:{value} ')
 	except Exception as e:
-		logger.error(f'{e} {type(e)} Error getting token appid:{AppID} tid:{TenantID} v:{Value} ')
-		raise TokenException(f'Error getting token {e} appid:{AppID} tid:{TenantID} v:{Value} ')
-	jsonResponse = json.loads(response.read())
-	aadToken = jsonResponse["access_token"]
+		logger.error(f'{e} {type(e)} Error getting token appid:{appid} tid:{tenantid} v:{value} ')
+		raise TokenException(f'Error getting token {e} appid:{appid} tid:{tenantid} v:{value} ')
+	jsonresponse = json.loads(response.read())
+	aadtoken = jsonresponse["access_token"]
 	# logger.debug(f'got aadtoken: {len(aadToken)}')
-	return aadToken
+	return aadtoken
 
 
 def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
-	#query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
+	# query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
 	query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents, DeviceFileEvents, DeviceLogonEvents, DeviceEvents, EmailEvents, IdentityLogonEvents, IdentityQueryEvents, IdentityDirectoryEvents, CloudAppEvents, AADSignInEventsBeta, AADSpnSignInEventsBeta) Timestamp between (ago({maxdays}d) .. now()) and RemoteIP == ip | take {limit} """
 	data = json.dumps({'Query': query}).encode("utf-8")
 	# print(f'query = {query}')
@@ -85,9 +85,9 @@ def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 	# print(f"results: {len(jresp.get('Results'))}")
 	return jresp
 
-def search_DeviceNetworkEvents(aadtoken, remoteip, limit=100, maxdays=3):
+def search_devicenetworkevents(aadtoken, remoteip, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
-	#query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
+	# query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
 	query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
 	data = json.dumps({'Query': query}).encode("utf-8")
 	# print(f'query = {query}')
@@ -141,10 +141,10 @@ def get_indicators(aadtoken, host=None):
 		json_err = json.loads(response.content)
 		logger.warning(f"responsecode={response.status_code} {json_err.get('error').get('code')} {json_err.get('error').get('message')}  apiurl={apiurl}")
 	elif response.status_code == 404:
-		#json_err = json.loads(response.content)
+		# json_err = json.loads(response.content)
 		logger.error(f'notfound responsecode={response.status_code} response.content={response.content}  apiurl={apiurl}')
 	elif response.status_code == 400:
-		#json_err = json.loads(response.content)
+		# json_err = json.loads(response.content)
 		logger.error(f'responsecode={response.status_code} response.content={response.content} apiurl={apiurl}')
 	else:
 		logger.error(f'unknown status responsecode={response.status_code}  apiurl={apiurl}')

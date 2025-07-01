@@ -1,41 +1,21 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 import os
 import argparse
 import json
-
-try:
-	from loguru import logger
-except ImportError as e:
-	logger.error(f'{e} missing loguru package')
-	os._exit(-1)
-
-try:
-	from colorama import Fore, Style
-except ImportError as e:
-	logger.error(f'{e} missing colorama package')
-	os._exit(-1)
-
-try:
-	from ipaddress import ip_address
-except ImportError as e:
-	logger.error(f'{e} missing ipaddress package')
-	os._exit(-1)
-
-
-try:
-	from myglapi.rest import ApiException
-except ImportError as e:
-	logger.error(f'{e} missing myglapi package')
-	os._exit(-1)
-
+from loguru import logger
+from colorama import Fore, Style
+from ipaddress import ip_address
+from myglapi.rest import ApiException
 from modules.virustotal import get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
-from modules.graylog import graylog_search
-from modules.defender import get_aad_token, search_DeviceNetworkEvents, get_indicators, DefenderException, TokenException, search_remote_url
+from modules.graylog import graylog_search, graylog_search_ip
+from modules.defender import get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
-from modules.xforce import get_xforce_ipreport
+# from modules.xforce import get_xforce_ipreport
 from modules.urlscanio import search_urlscanio
+import urllib3
+urllib3.disable_warnings()
 
 # todo urlscan.io, fortiguard, abuse.ch
 # done add graylog, azure, defender, xforce
@@ -88,21 +68,28 @@ def main(args):
 		except Exception as e:
 			logger.error(f'unhandled {type(e)} {e}')
 
-	if args.xforce:
-		xfi = get_xforce_ipreport(args.host)
-		try:
-			spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history') ])
-			scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history') ])
-			anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history') ])
-			dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history') ])
-			malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history') ])
-			botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history') ])
-			boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history') ])
-			crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history') ])
-			xscore = xfi.get('score')
-			print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')			
-		except Exception as e:
-			logger.error(f'{e} {type(e)} in xforce')
+	# if args.xforce:
+	# 	try:
+	# 		xfi = get_xforce_ipreport(args.host)
+	# 	except Exception as e:
+	# 		logger.error(f'xforce error: {e} {type(e)}')
+	# 		return None
+	# 	if xfi.get('error') == 'Not authorized.':
+	# 		logger.error(f'xforce error: {xfi.get("error")} xfi: {xfi}')
+	# 	else:
+	# 		try:
+	# 			spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history')])
+	# 			scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history')])
+	# 			anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history')])
+	# 			dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history')])
+	# 			malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history')])
+	# 			botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history')])
+	# 			boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history')])
+	# 			crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history')])
+	# 			xscore = xfi.get('score')
+	# 			print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
+	# 		except Exception as e:
+	# 			logger.error(f'{e} {type(e)} in xforce xfi: {xfi}')
 	if args.vturl:
 		infourl = get_virustotal_scanurls(args.vturl)
 		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}')
@@ -123,32 +110,34 @@ def main(args):
 			print(f'{Fore.YELLOW}private address: {ipaddress}')
 
 	if args.virustotal:
-		vtinfo = get_vt_ipinfo(args.host)
+		vtinfo = get_vt_ipinfo(args)
 		if vtinfo:
 			vt_las = vtinfo.last_analysis_stats
 			vt_res = vtinfo.last_analysis_results
 			try:
-				vt_aso = vtinfo.as_owner
-				vt_tv = vtinfo.total_votes
+				vt_aso = vtinfo.as_owner if hasattr(vtinfo, 'as_owner') else None
+				# vt_aso = vtinfo.as_owner
+				vt_tv = vtinfo.total_votes if hasattr(vtinfo, 'total_votes') else None
 			except AttributeError as e:
-				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}' )
+				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}')
 				vt_aso = None
 				vt_tv = None
 			if vt_tv:
 				malicious = 0
 				try:
-					malicious += vt_tv.get('malicious',0)
+					malicious += int(vt_tv.get('malicious',0))
 				except Exception as e:
 					logger.error(f'{e} {type(e)}')
 				try:
-					malicious += vt_las.get('malicious',0)
+					malicious += int(vt_las.get('malicious',0))
 				except Exception as e:
 					logger.error(f'{e} {type(e)}')
 				if malicious > 0:
 					vtforecolor = Fore.RED
 				else:
-					vtforecolor = Fore.GREEN				
-				print(f'{Fore.LIGHTBLUE_EX}vt asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
+					vtforecolor = Fore.GREEN
+				# print(f'{Fore.LIGHTBLUE_EX}vt {args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
+				print(f'{Fore.LIGHTBLUE_EX}vt {args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} malicious: {malicious}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
 					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
@@ -162,7 +151,7 @@ def main(args):
 	if args.graylog:
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
 		try:
-			results = graylog_search(query=searchquery, range=86400)
+			results = graylog_search_ip(args.host, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
 			results = None
@@ -170,12 +159,14 @@ def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			if results.total_results > 0:
-				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.total_results}')
-				for res in results.messages[:args.maxoutput]:
-					print(f"   {Fore.BLUE}ts:{res.get('message').get('timestamp')} {Fore.GREEN} srccountry:{res.get('message').get('srccountry')} {Fore.CYAN} action:{res.get('message').get('action')} srcip:{res.get('message').get('srcip')} dstip:{res.get('message').get('dstip')} service: {res.get('message').get('service')} url:{res.get('message').get('url')}")				
+			if results.get('hits').get('total').get('value') > 0:
+				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
+				for res in results.get('hits').get('hits')[:args.maxoutput]:
+					res_msg = res.get('_source')
+					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
+					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
 			else:
-				print(f'{Fore.YELLOW}no graylog data ({results.total_results}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
+				print(f'{Fore.YELLOW}no graylog data ({results.get('hits').get('total').get('value')}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 		else:
 			print(f'{Fore.YELLOW}no graylog results for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 
@@ -190,19 +181,19 @@ def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			ipaddres_set = set([k.get('message').get('remip') for k in results.messages])
-			print(f'{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.total_results} ipaddres_set: {len(ipaddres_set)}')
-			for res in results.messages[:args.maxoutput]:
-				print(f"{Fore.YELLOW}   {res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('user')} {res.get('message').get('remip')} {res.get('message').get('source')}")
+			ipaddres_set = set([k.get('message').get('remip') for k in results.get('hits').get('hits')])
+			print(f'{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}')
+			for res in results.get('hits').get('hits')[:args.maxoutput]:
+				print(f"{Fore.YELLOW}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('user')} {res_msg.get('remip')} {res_msg.get('source')}")
 			token = get_aad_token()
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
-				defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
+				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				glres = graylog_search(query=glq, range=86400)
-				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.total_results}')
+				glres = graylog_search_ip(addr, range=86400)
+				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW}{len(defenderdata.get("Results"))} for {Fore.CYAN}{addr}')
 					results = defenderdata.get('Results')
@@ -232,23 +223,23 @@ def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			ipaddres_set = set([k.get('message').get('dstip') for k in results.messages])
-			print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {results.total_results} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}')
+			ipaddres_set = set([k.get('message').get('dstip') for k in results.get('hits').get('hits')])
+			print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}')
 			token = get_aad_token()
 			indicators = get_indicators(token, args.host)
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}')
 				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
-				defenderdata = search_DeviceNetworkEvents(token, addr, limit=100, maxdays=1)
+				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				glres = graylog_search(query=glq, range=86400)
+				glres = graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
-				if glres.total_results > 0:
-					print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {glres.total_results}')
-					for res in glres.messages[:args.maxoutput]:
-						print(f"{Fore.CYAN}   {res.get('message').get('timestamp')} {res.get('message').get('msg')} {res.get('message').get('action')} {res.get('message').get('srcip')} {res.get('message').get('dstip')} {res.get('message').get('url')}")
+				if glres.get('hits').get('total').get('value') > 0:
+					print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}')
+					for res in glres.get('hits').get('hits')[:args.maxoutput]:
+						print(f"{Fore.CYAN}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('srcip')} {res_msg.get('dstip')} {res_msg.get('url')}")
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW} {len(defenderdata.get("Results"))} {Fore.LIGHTBLUE_EX}for{Fore.CYAN} {addr}')
 					results = defenderdata.get('Results')
@@ -269,6 +260,8 @@ def main(args):
 
 	if args.azure:
 		logdata = get_azure_signinlogs(args.host)
+		if args.debug:
+			logger.debug(f'azure signinlogs: {len(logdata)}')
 		if len(logdata) >= 1:
 			print(f'{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(logdata)}')
 			if len(logdata) > 0:
@@ -278,7 +271,6 @@ def main(args):
 					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 			else:
 				print(f'{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
-
 
 	if args.defender:
 		try:
@@ -293,14 +285,14 @@ def main(args):
 				logger.error(e)
 				os._exit(-1)
 			# if len([k for k in indicators if k.get('indicatorValue') == args.host]) <= 1:
-			if len([k for k in indicators if args.host in  str(k.values())]) >= 1:
+			if len([k for k in indicators if args.host in str(k.values())]) >= 1:
 				indx = [k for k in indicators if k.get('indicatorValue') == args.host]
 				for ind in indx:
-					print(f'{Fore.RED}indicator found: type: {ind.get("indicatorType")} {ind.get("action")} {ind.get("createdBy")}')
+					print(f'{Fore.RED}indicator found: {Fore.GREEN} {ind.get("title")} {ind.get("description")} {Fore.LIGHTBLUE_EX}type: {ind.get("indicatorType")} action: {ind.get("action")} {Fore.LIGHTGREEN_EX} created by: {ind.get("createdBy")}')
 			else:
 				print(f'{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			try:
-				defenderdata = search_DeviceNetworkEvents(token, args.host, limit=100, maxdays=3)
+				defenderdata = search_devicenetworkevents(token, args.host, limit=100, maxdays=3)
 				if len(defenderdata.get('Results')) >= 1:
 					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
@@ -311,31 +303,35 @@ def main(args):
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)
-			#print(f'results: {results}')
+			# print(f'results: {results}')
 
+def get_args():
+	parser = argparse.ArgumentParser(description="ip address lookup")
+	parser.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
+	parser.add_argument('--url', help="url to lookup", type=str, metavar='url')
+	parser.add_argument('--vturl', help="virustotal url lookup", type=str)
+	parser.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
+	parser.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
+	parser.add_argument('--spam', help="spam lookup", action='store_true', default=False)
+	parser.add_argument('-abip', '--abuseipdb', help="abuseipdb lookup", action='store_true', default=False, dest='abuseipdb')
+	parser.add_argument('-us', '--urlscanio', help="urlscanio lookup", action='store_true', default=False, dest='urlscanio')
+	parser.add_argument('--graylog', help="search in graylog", action='store_true', default=False, dest='graylog')
+	parser.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False, dest='ftgd_blk')
+	parser.add_argument('--sslvpnloginfail', help="get sslvpnloginfail from graylog", action='store_true', default=False, dest='sslvpnloginfail')
+	parser.add_argument('-def', '--defender', help="search in defender", action='store_true', default=False, dest='defender')
+	parser.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
+	parser.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
+
+	parser.add_argument('--maxoutput', help="limit output", default=10, type=int)
+	parser.add_argument('--all', help="use all lookups", action='store_true', default=False)
+	parser.add_argument('--debug', help="debug", action='store_true', default=False)
+	args = parser.parse_args()
+	return parser, args
 
 if __name__ == '__main__':
-	parsedargs = argparse.ArgumentParser(description="ip address lookup")
-	parsedargs.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
-	parsedargs.add_argument('--url', help="url to lookup", type=str, metavar='url')
-	parsedargs.add_argument('--vturl', help="virustotal url lookup", type=str )
-	parsedargs.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
-	parsedargs.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
-	parsedargs.add_argument('--spam', help="spam lookup", action='store_true', default=False)
-	parsedargs.add_argument('-abip', '--abuseipdb', help="abuseipdb lookup", action='store_true', default=False, dest='abuseipdb')
-	parsedargs.add_argument('-us', '--urlscanio', help="urlscanio lookup", action='store_true', default=False, dest='urlscanio')
-	parsedargs.add_argument('--graylog', help="search in graylog", action='store_true', default=False, dest='graylog')
-	parsedargs.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False, dest='ftgd_blk')
-	parsedargs.add_argument('--sslvpnloginfail', help="get sslvpnloginfail from graylog", action='store_true', default=False, dest='sslvpnloginfail')
-	parsedargs.add_argument('-def', '--defender', help="search in defender", action='store_true', default=False, dest='defender')
-	parsedargs.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
-	parsedargs.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
-
-	parsedargs.add_argument('--maxoutput', help="limit output", default=10)
-	parsedargs.add_argument('--all', help="use all lookups", action='store_true', default=False)
-	args = parsedargs.parse_args()
 	vtinfo = None
 	abuseipdbdata = None
+	parser, args = get_args()
 	try:
 		main(args)
 	except KeyboardInterrupt as e:
@@ -344,6 +340,6 @@ if __name__ == '__main__':
 		logger.error(f'mainerror: {e} {type(e)}')
 	except TypeError as e:
 		logger.error(f'mainerror: {e} {type(e)}')
-	except Exception as e:
-		logger.error(f'mainerror: {e} {type(e)}')
+	# except Exception as e:
+	# 	logger.error(f'mainerror: {e} {type(e)}')
 	print(f'{Style.RESET_ALL}')

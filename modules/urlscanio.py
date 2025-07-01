@@ -11,10 +11,10 @@ def get_urlscanio_data(ipaddr):
 	pass
 
 def search_urlscanio(remoteurl):
-	URLSCANIOAPIKEY = os.environ.get("URLSCANIOAPIKEY")
+	urlscanapikey = os.environ.get("URLSCANIOAPIKEY")
 	headers = {
 		'Authorization': 'Basic',
-		'API-Key': URLSCANIOAPIKEY}
+		'API-Key': urlscanapikey}
 	params = {
 		'q': remoteurl,
 			}
