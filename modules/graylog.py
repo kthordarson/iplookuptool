@@ -1,5 +1,4 @@
 import os
-from urllib3.exceptions import MaxRetryError
 from opensearchpy import OpenSearch
 from loguru import logger
 import urllib3
