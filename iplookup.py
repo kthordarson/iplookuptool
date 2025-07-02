@@ -163,7 +163,7 @@ async def main(args):
 					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
 
 	if args.abuseipdb:
-		abuseipdbdata = get_abuseipdb_data(args.host)
+		abuseipdbdata = await get_abuseipdb_data(args.host)
 		if abuseipdbdata:
 			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 			# print(f'{Fore.LIGHTBLUE_EX}   abuseipdb hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
