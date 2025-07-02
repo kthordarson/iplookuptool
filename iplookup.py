@@ -65,8 +65,8 @@ async def main(args):
 		vturlinfo = await get_virustotal_urlinfo(infourl)
 		vt_url_resultdata = vturlinfo.get('data').get('attributes').get('results')
 		try:
-			token = get_aad_token()
-			defenderdata = search_remote_url(args.url, token, limit=100, maxdays=3)
+			token = await get_aad_token()
+			defenderdata = await search_remote_url(args.url, token, limit=100, maxdays=3)
 		except (DefenderException, TokenException) as e:
 			logger.error(e)
 			os._exit(-1)
@@ -205,10 +205,10 @@ async def main(args):
 			print(f'{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}')
 			for res in results.get('hits').get('hits')[:args.maxoutput]:
 				print(f"{Fore.YELLOW}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('user')} {res_msg.get('remip')} {res_msg.get('source')}")
-			token = get_aad_token()
+			token = await get_aad_token()
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
-				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
+				defenderdata = await search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
@@ -245,12 +245,12 @@ async def main(args):
 		if results:
 			ipaddres_set = set([k.get('message').get('dstip') for k in results.get('hits').get('hits')])
 			print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}')
-			token = get_aad_token()
-			indicators = get_indicators(token, args.host)
+			token = await get_aad_token()
+			indicators = await get_indicators(token, args.host)
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}')
 				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
-				defenderdata = search_devicenetworkevents(token, addr, limit=100, maxdays=1)
+				defenderdata = await search_devicenetworkevents(token, addr, limit=100, maxdays=1)
 				azuredata = get_azure_signinlogs(addr)
 				azuredata_f = get_azure_signinlogs_failed(addr)
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
@@ -294,13 +294,13 @@ async def main(args):
 
 	if args.defender:
 		try:
-			token = get_aad_token()
+			token = await get_aad_token()
 		except Exception as e:
 			logger.error(e)
 			os._exit(-1)
 		if token:
 			try:
-				indicators = get_indicators(token, args.host)
+				indicators = await get_indicators(token, args.host)
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)
@@ -312,7 +312,7 @@ async def main(args):
 			else:
 				print(f'{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			try:
-				defenderdata = search_devicenetworkevents(token, args.host, limit=100, maxdays=3)
+				defenderdata = await search_devicenetworkevents(token, args.host, limit=100, maxdays=3)
 				if len(defenderdata.get('Results')) >= 1:
 					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
