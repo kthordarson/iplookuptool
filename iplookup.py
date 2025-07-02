@@ -279,7 +279,7 @@ async def main(args):
 						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.azure:
-		logdata = get_azure_signinlogs(args.host)
+		logdata = await get_azure_signinlogs(args.host)
 		if args.debug:
 			logger.debug(f'azure signinlogs: {len(logdata)}')
 		if len(logdata) >= 1:
