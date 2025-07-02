@@ -124,7 +124,7 @@ async def main(args):
 		print(f'{Fore.LIGHTBLUE_EX}ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		ipaddress = ip_address(args.host)
 		if ipaddress.is_global:
-			whois_info = get_ipwhois(args.host)
+			whois_info = await get_ipwhois(args.host)
 			print(f'{Fore.LIGHTBLUE_EX}whois:{Fore.CYAN} {whois_info}')
 		elif ipaddress.is_private:
 			print(f'{Fore.YELLOW}private address: {ipaddress}')
