@@ -171,7 +171,7 @@ async def main(args):
 	if args.graylog:
 		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
 		try:
-			results = graylog_search_ip(args.host, range=86400)
+			results = await graylog_search_ip(args.host, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
 			results = None
@@ -193,7 +193,7 @@ async def main(args):
 	if args.sslvpnloginfail and args.graylog:
 		searchquery = 'action:ssl-login-fail'
 		try:
-			results = graylog_search(query=searchquery, range=86400)
+			results = await graylog_search(query=searchquery, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
 			results = None
@@ -212,7 +212,7 @@ async def main(args):
 				azuredata = await get_azure_signinlogs(addr)
 				azuredata_f = await get_azure_signinlogs_failed(addr)
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				glres = graylog_search_ip(addr, range=86400)
+				glres = await graylog_search_ip(addr, range=86400)
 				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW}{len(defenderdata.get("Results"))} for {Fore.CYAN}{addr}')
@@ -235,7 +235,7 @@ async def main(args):
 	if args.ftgd_blk and args.graylog:
 		searchquery = 'eventtype:ftgd_blk'
 		try:
-			results = graylog_search(query=searchquery, range=86400)
+			results = await graylog_search(query=searchquery, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
 			raise e
@@ -254,7 +254,7 @@ async def main(args):
 				azuredata = await get_azure_signinlogs(addr)
 				azuredata_f = await get_azure_signinlogs_failed(addr)
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				glres = graylog_search_ip(ip_address=addr, range=86400)
+				glres = await graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
 				if glres.get('hits').get('total').get('value') > 0:
 					print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}')
