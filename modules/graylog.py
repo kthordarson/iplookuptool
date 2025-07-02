@@ -10,7 +10,7 @@ async def graylog_search_ip(ip_address, range=86400):
 	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
 	# ipaddr = args.host  # '31.209.157.27'
 	query = {'size': 5,'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip']}}}
-	
+
 	async with AsyncOpenSearch([os.environ.get('OPENSEARCHOST')], http_auth=(os.environ.get('OPENSEARCHAUTHPASS'), os.environ.get('OPENSEARCHAUTHPASS')), use_ssl=True, verify_certs=False, ssl_show_warn=False) as client:
 		# q='RemoteMGNT'
 		# range=(86400)
@@ -27,7 +27,7 @@ async def graylog_search(query, range=86400):
 	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
 	# ipaddr = args.host  # '31.209.157.27'
 	query = {'size': 5,'query': {'multi': {'query': query}}}  # ,'fields': ['srcip', 'dstip']}}}
-	
+
 	async with AsyncOpenSearch([os.environ.get('OPENSEARCHOST')], http_auth=(os.environ.get('OPENSEARCHAUTHPASS'), os.environ.get('OPENSEARCHAUTHPASS')), use_ssl=True, verify_certs=False, ssl_show_warn=False) as client:
 		# q='RemoteMGNT'
 		# range=(86400)

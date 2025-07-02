@@ -28,7 +28,7 @@ async def get_aad_token():
 	resourceappiduri = 'https://api-eu.securitycenter.microsoft.com'
 	body = {'resource': resourceappiduri, 'client_id': appid,
 			'client_secret': value, 'grant_type': 'client_credentials'}
-	
+
 	try:
 		async with aiohttp.ClientSession() as session:
 			async with session.post(url, data=body) as response:

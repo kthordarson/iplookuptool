@@ -20,12 +20,12 @@ async def search_urlscanio(remoteurl):
 		'q': remoteurl,
 			}
 	url = 'https://urlscan.io/api/v1/search/'
-	
+
 	try:
 		# Create SSL context that doesn't verify certificates (equivalent to verify=False)
 		ssl_context = aiohttp.TCPConnector(ssl=False)
 		timeout = aiohttp.ClientTimeout(total=20)
-		
+
 		async with aiohttp.ClientSession(connector=ssl_context, timeout=timeout) as session:
 			async with session.get(url, params=params, headers=headers) as response:
 				try:

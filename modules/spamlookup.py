@@ -7,7 +7,7 @@ async def spam_lookup(ipaddr):
 	ip_rev = '.'.join(str(ipaddr).split('.')[::-1])
 	listed = 0
 	l_rbl = []
-	
+
 	async def check_blacklist(bl_host):
 		"""Check a single blacklist host asynchronously"""
 		try:
@@ -20,11 +20,11 @@ async def spam_lookup(ipaddr):
 		except Exception as e:
 			logger.error(f'[!] Error checking {bl_host}: {e} {type(e)} for address {ipaddr}')
 			return None
-	
+
 	# Run all blacklist checks concurrently
 	try:
 		results = await asyncio.gather(*[check_blacklist(bl_host) for bl_host in bl], return_exceptions=True)
-		
+
 		# Process results
 		for result in results:
 			if isinstance(result, Exception):
@@ -33,9 +33,9 @@ async def spam_lookup(ipaddr):
 			if result:  # If blacklist name is returned, IP is listed
 				l_rbl.append(result)
 				listed += 1
-				
+
 	except Exception as e:
 		logger.error(f'[!] Error in spam lookup: {e} {type(e)} for address {ipaddr}')
 		return None
-	
+
 	return [str(listed), l_rbl]
