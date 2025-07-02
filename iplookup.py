@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import asyncio
 import os
 import argparse
 import json
@@ -17,10 +18,30 @@ from modules.urlscanio import search_urlscanio
 import urllib3
 urllib3.disable_warnings()
 
-# todo urlscan.io, fortiguard, abuse.ch
-# done add graylog, azure, defender, xforce
+def get_args():
+	parser = argparse.ArgumentParser(description="ip address lookup")
+	parser.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
+	parser.add_argument('--url', help="url to lookup", type=str, metavar='url')
+	parser.add_argument('--vturl', help="virustotal url lookup", type=str)
+	parser.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
+	parser.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
+	parser.add_argument('--spam', help="spam lookup", action='store_true', default=False)
+	parser.add_argument('-abip', '--abuseipdb', help="abuseipdb lookup", action='store_true', default=False, dest='abuseipdb')
+	parser.add_argument('-us', '--urlscanio', help="urlscanio lookup", action='store_true', default=False, dest='urlscanio')
+	parser.add_argument('--graylog', help="search in graylog", action='store_true', default=False, dest='graylog')
+	parser.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False, dest='ftgd_blk')
+	parser.add_argument('--sslvpnloginfail', help="get sslvpnloginfail from graylog", action='store_true', default=False, dest='sslvpnloginfail')
+	parser.add_argument('-def', '--defender', help="search in defender", action='store_true', default=False, dest='defender')
+	parser.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
+	parser.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
 
-def main(args):
+	parser.add_argument('--maxoutput', help="limit output", default=10, type=int)
+	parser.add_argument('--all', help="use all lookups", action='store_true', default=False)
+	parser.add_argument('--debug', help="debug", action='store_true', default=False)
+	args = parser.parse_args()
+	return parser, args
+
+async def main(args):
 	if args.all:
 		args.ipwhois = True
 		args.virustotal = True
@@ -30,36 +51,35 @@ def main(args):
 		args.graylog = True
 		args.azure = True
 		args.urlscanio = True
-		args.xforce = True
+		# args.xforce = True
 
 	try:
 		ipaddress = ip_address(args.host).exploded
 	except ValueError as e:
 		logger.warning(f'[!] {e} {type(e)} for address {args.host}')
-		ipaddress = None
+		return
 
 	if args.url:
 		# search logs for remoteurl
-		# print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {args.url} {Style.RESET_ALL}')
-		infourl = get_virustotal_scanurls(args.url)
-		# print(f'{Fore.LIGHTBLUE_EX}getting info from vt url: {Fore.CYAN}{infourl}{Style.RESET_ALL}')
-		vturlinfo = get_virustotal_urlinfo(infourl)
-		resultdata = vturlinfo.get('data').get('attributes').get('results')
-		print(f"{Fore.LIGHTBLUE_EX}vt url info  {Fore.CYAN} {len(resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
-		for vendor in resultdata:
-			if resultdata.get(vendor).get('category') == 'malicious':
-				print(f"{Fore.CYAN}   Vendor: {vendor} result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
+		infourl = await get_virustotal_scanurls(args.url)
+		vturlinfo = await get_virustotal_urlinfo(infourl)
+		vt_url_resultdata = vturlinfo.get('data').get('attributes').get('results')
 		try:
 			token = get_aad_token()
 			defenderdata = search_remote_url(args.url, token, limit=100, maxdays=3)
+		except (DefenderException, TokenException) as e:
+			logger.error(e)
+			os._exit(-1)
+		finally:
+			print(f"{Fore.LIGHTBLUE_EX}vt url info  {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
+			for vendor in vt_url_resultdata:
+				if vt_url_resultdata.get(vendor).get('category') == 'malicious':
+					print(f"{Fore.CYAN}   Vendor: {vendor} result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
 			print(f"{Fore.LIGHTBLUE_EX}defender data:{Fore.YELLOW} {len(defenderdata.get("Results"))} {Style.RESET_ALL}")
 			if len(defenderdata.get('Results')) >= 1:
 				results = defenderdata.get('Results')
 				for res in results[:args.maxoutput]:
 					print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
-		except (DefenderException, TokenException) as e:
-			logger.error(e)
-			os._exit(-1)
 
 	if args.urlscanio:
 		try:
@@ -68,37 +88,37 @@ def main(args):
 		except Exception as e:
 			logger.error(f'unhandled {type(e)} {e}')
 
-	# if args.xforce:
-	# 	try:
-	# 		xfi = get_xforce_ipreport(args.host)
-	# 	except Exception as e:
-	# 		logger.error(f'xforce error: {e} {type(e)}')
-	# 		return None
-	# 	if xfi.get('error') == 'Not authorized.':
-	# 		logger.error(f'xforce error: {xfi.get("error")} xfi: {xfi}')
-	# 	else:
-	# 		try:
-	# 			spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history')])
-	# 			scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history')])
-	# 			anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history')])
-	# 			dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history')])
-	# 			malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history')])
-	# 			botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history')])
-	# 			boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history')])
-	# 			crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history')])
-	# 			xscore = xfi.get('score')
-	# 			print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
-	# 		except Exception as e:
-	# 			logger.error(f'{e} {type(e)} in xforce xfi: {xfi}')
+	if args.xforce:
+		try:
+			xfi = {}  # get_xforce_ipreport(args.host)
+		except Exception as e:
+			logger.error(f'xforce error: {e} {type(e)}')
+			return None
+		if xfi.get('error') == 'Not authorized.':
+			logger.error(f'xforce error: {xfi.get("error")} xfi: {xfi}')
+		else:
+			try:
+				spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history')])
+				scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history')])
+				anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history')])
+				dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history')])
+				malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history')])
+				botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history')])
+				boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history')])
+				crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history')])
+				xscore = xfi.get('score')
+				print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
+			except Exception as e:
+				logger.error(f'{e} {type(e)} in xforce xfi: {xfi}')
 	if args.vturl:
-		infourl = get_virustotal_scanurls(args.vturl)
+		infourl = await get_virustotal_scanurls(args.vturl)
 		print(f'{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}')
-		vturlinfo = get_virustotal_urlinfo(infourl)
-		resultdata = vturlinfo.get('data').get('attributes').get('results')
-		print(f"{Fore.BLUE}vt url info:  {Fore.GREEN}{len(resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
-		for vendor in resultdata:
-			if resultdata.get(vendor).get('category') == 'malicious':
-				print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN}result: {resultdata.get(vendor).get('result')} method: {resultdata.get(vendor).get('method')} ")
+		vturlinfo = await get_virustotal_urlinfo(infourl)
+		vt_url_resultdata = vturlinfo.get('data').get('attributes').get('results')
+		print(f"{Fore.BLUE}vt url info:  {Fore.GREEN}{len(vt_url_resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
+		for vendor in vt_url_resultdata:
+			if vt_url_resultdata.get(vendor).get('category') == 'malicious':
+				print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
 
 	if args.ipwhois and ipaddress:
 		print(f'{Fore.LIGHTBLUE_EX}ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
@@ -110,7 +130,7 @@ def main(args):
 			print(f'{Fore.YELLOW}private address: {ipaddress}')
 
 	if args.virustotal:
-		vtinfo = get_vt_ipinfo(args)
+		vtinfo = await get_vt_ipinfo(args)
 		if vtinfo:
 			vt_las = vtinfo.last_analysis_stats
 			vt_res = vtinfo.last_analysis_results
@@ -305,35 +325,12 @@ def main(args):
 				os._exit(-1)
 			# print(f'results: {results}')
 
-def get_args():
-	parser = argparse.ArgumentParser(description="ip address lookup")
-	parser.add_argument('--host', help="ipaddress/host to lookup", type=str, metavar='ipaddr')
-	parser.add_argument('--url', help="url to lookup", type=str, metavar='url')
-	parser.add_argument('--vturl', help="virustotal url lookup", type=str)
-	parser.add_argument('--ipwhois', help="ipwhois lookup", action='store_true', default=False)
-	parser.add_argument('-vt', '--virustotal', help="virustotal lookup", action='store_true', default=False, dest='virustotal')
-	parser.add_argument('--spam', help="spam lookup", action='store_true', default=False)
-	parser.add_argument('-abip', '--abuseipdb', help="abuseipdb lookup", action='store_true', default=False, dest='abuseipdb')
-	parser.add_argument('-us', '--urlscanio', help="urlscanio lookup", action='store_true', default=False, dest='urlscanio')
-	parser.add_argument('--graylog', help="search in graylog", action='store_true', default=False, dest='graylog')
-	parser.add_argument('--ftgd_blk', help="get ftgd_blk from graylog", action='store_true', default=False, dest='ftgd_blk')
-	parser.add_argument('--sslvpnloginfail', help="get sslvpnloginfail from graylog", action='store_true', default=False, dest='sslvpnloginfail')
-	parser.add_argument('-def', '--defender', help="search in defender", action='store_true', default=False, dest='defender')
-	parser.add_argument('-az', '--azure', help="search azurelogs", action='store_true', default=False, dest='azure')
-	parser.add_argument('-xf', '--xforce', help="search xforce", action='store_true', default=False, dest='xforce')
-
-	parser.add_argument('--maxoutput', help="limit output", default=10, type=int)
-	parser.add_argument('--all', help="use all lookups", action='store_true', default=False)
-	parser.add_argument('--debug', help="debug", action='store_true', default=False)
-	args = parser.parse_args()
-	return parser, args
-
 if __name__ == '__main__':
 	vtinfo = None
 	abuseipdbdata = None
 	parser, args = get_args()
 	try:
-		main(args)
+		asyncio.run(main(args))
 	except KeyboardInterrupt as e:
 		logger.error(f'mainerror: {e} {type(e)}')
 	except ValueError as e:
