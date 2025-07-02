@@ -169,8 +169,9 @@ async def main(args):
 			# print(f'{Fore.LIGHTBLUE_EX}   abuseipdb hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 
 	if args.graylog:
-		searchquery = f'srcip:{args.host} OR dstip:{args.host} OR remip:{args.host}'
 		try:
+			if args.debug:
+				logger.debug(f'searching graylog for {args.host}')
 			results = await graylog_search_ip(args.host, range=86400)
 		except ApiException as e:
 			logger.warning(f'graylog search error: {e}')
@@ -179,6 +180,8 @@ async def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
+			if args.debug:
+				logger.debug(f'graylog search returned {results.get("hits").get("total").get("value")} results for {args.host}')
 			if results.get('hits').get('total').get('value') > 0:
 				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
 				for res in results.get('hits').get('hits')[:args.maxoutput]:
@@ -208,11 +211,20 @@ async def main(args):
 			token = await get_aad_token()
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
+				if args.debug:
+					logger.debug(f'searching defender for {addr}')
 				defenderdata = await search_devicenetworkevents(token, addr, limit=100, maxdays=1)
+				if args.debug:
+					logger.debug(f'defender returned {len(defenderdata.get("Results"))} ... searching azure logs for {addr}')
 				azuredata = await get_azure_signinlogs(addr)
+				if args.debug:
+					logger.debug(f'azure logs returned {len(azuredata)} ... searching azure failed signin logs for {addr}')
 				azuredata_f = await get_azure_signinlogs_failed(addr)
-				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
+				if args.debug:
+					logger.debug(f'azure failed signin logs returned {len(azuredata_f)} ... searching graylog for {addr}')
 				glres = await graylog_search_ip(addr, range=86400)
+				if args.debug:
+					logger.debug(f'graylog search returned {glres.get("hits").get("total").get("value")} results for {addr}')
 				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW}{len(defenderdata.get("Results"))} for {Fore.CYAN}{addr}')
@@ -279,13 +291,13 @@ async def main(args):
 						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
 
 	if args.azure:
-		logdata = await get_azure_signinlogs(args.host)
+		azuredata = await get_azure_signinlogs(args.host)
 		if args.debug:
-			logger.debug(f'azure signinlogs: {len(logdata)}')
-		if len(logdata) >= 1:
-			print(f'{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(logdata)}')
-			if len(logdata) > 0:
-				for logentry in logdata[:args.maxoutput]:
+			logger.debug(f'azure signinlogs: {len(azuredata)}')
+		if len(azuredata) >= 1:
+			print(f'{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(azuredata)}')
+			if len(azuredata) > 0:
+				for logentry in azuredata[:args.maxoutput]:
 					timest = logentry.get('TimeGenerated')
 					status = json.loads(logentry.get('Status'))
 					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
