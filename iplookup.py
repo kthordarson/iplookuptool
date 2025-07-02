@@ -83,7 +83,7 @@ async def main(args):
 
 	if args.urlscanio:
 		try:
-			urlscandata = search_urlscanio(args.host)
+			urlscandata = await search_urlscanio(args.host)
 			print(f'{Fore.LIGHTBLUE_EX}urlscanio data: {Fore.YELLOW}{len(urlscandata)} {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
 		except Exception as e:
 			logger.error(f'unhandled {type(e)} {e}')
