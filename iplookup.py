@@ -209,8 +209,8 @@ async def main(args):
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
 				defenderdata = await search_devicenetworkevents(token, addr, limit=100, maxdays=1)
-				azuredata = get_azure_signinlogs(addr)
-				azuredata_f = get_azure_signinlogs_failed(addr)
+				azuredata = await get_azure_signinlogs(addr)
+				azuredata_f = await get_azure_signinlogs_failed(addr)
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = graylog_search_ip(addr, range=86400)
 				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')
@@ -251,8 +251,8 @@ async def main(args):
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}')
 				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
 				defenderdata = await search_devicenetworkevents(token, addr, limit=100, maxdays=1)
-				azuredata = get_azure_signinlogs(addr)
-				azuredata_f = get_azure_signinlogs_failed(addr)
+				azuredata = await get_azure_signinlogs(addr)
+				azuredata_f = await get_azure_signinlogs_failed(addr)
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
