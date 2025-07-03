@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import pandas as pd
 import os
 import argparse
 import json
@@ -180,6 +181,7 @@ async def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
+			df = pd.DataFrame([k['_source'] for k in results.get('hits').get('hits')])
 			if args.debug:
 				logger.debug(f'graylog search returned {results.get("hits").get("total").get("value")} results for {args.host}')
 			if results.get('hits').get('total').get('value') > 0:
