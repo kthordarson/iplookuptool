@@ -190,6 +190,25 @@ async def main(args):
 					res_msg = res.get('_source')
 					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
+				if 'msg' in df.columns:
+					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by srcip:')
+					try:
+						print(df.groupby(['action', 'msg', 'srcip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+					except KeyError as e:
+						logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
+					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by dstip:')
+					try:
+						print(df.groupby(['action', 'msg', 'dstip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+					except KeyError as e:
+						logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
+				else:
+					print(f'{Fore.YELLOW}no msg column in graylog data - check graylog data structure. {df.columns}')
+				try:
+					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by type and ip:')
+					print(df.groupby(['action','type', 'subtype', 'srcip', 'dstip'])['timestamp'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+				except KeyError as e:
+					logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
+					# print(df.groupby(['action', 'srcip'])['srcip'].agg(['count']).sort_values(by='count', ascending=False).head(15))
 			else:
 				print(f'{Fore.YELLOW}no graylog data ({results.get('hits').get('total').get('value')}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 		else:
