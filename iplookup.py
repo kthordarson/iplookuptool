@@ -11,7 +11,7 @@ from myglapi.rest import ApiException
 from modules.virustotal import get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
-from modules.graylog import graylog_search, graylog_search_ip
+from modules.graylog import graylog_search, graylog_search_ip, summarize_graylog_results, print_graylog_summary
 from modules.defender import get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 # from modules.xforce import get_xforce_ipreport
@@ -181,12 +181,52 @@ async def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			df = pd.DataFrame([k['_source'] for k in results.get('hits').get('hits')])
-			if args.debug:
-				logger.debug(f'graylog search returned {results.get("hits").get("total").get("value")} results for {args.host}')
-				print(f'[df] {df} {df.columns} ')
-				print(f'[df] {df.head()}')
+			summary = summarize_graylog_results(results)
+			print_graylog_summary(results)
+			df = pd.DataFrame([k['_source'] for k in results.get('hits').get('hits')])		
+			# Additional detailed analysis
 			if results.get('hits').get('total').get('value') > 0:
+				print(f'\n{Fore.LIGHTBLUE_EX}=== Detailed Analysis ==={Style.RESET_ALL}')
+				
+				# Citrix specific analysis
+				if 'citrixtype' in df.columns or 'type' in df.columns:
+					if 'citrixtype' in df.columns or (df['type'] == 'citrixtype').any():
+						print(f'{Fore.LIGHTBLUE_EX}Citrix NetScaler Data Analysis:')
+						
+						# Analyze traffic patterns
+						if 'Total_bytes_recv' in df.columns and 'Total_bytes_send' in df.columns:
+							total_recv = df['Total_bytes_recv'].sum()
+							total_sent = df['Total_bytes_send'].sum()
+							print(f"  {Fore.CYAN}Total Traffic - Received: {Fore.YELLOW}{total_recv:,} bytes {Fore.CYAN}Sent: {Fore.YELLOW}{total_sent:,} bytes")
+						
+						# Top destinations
+						if 'Destination' in df.columns:
+							top_destinations = df['Destination'].value_counts().head(10)
+							print(f"  {Fore.CYAN}Top Destinations:")
+							for dest, count in top_destinations.items():
+								print(f"    {Fore.YELLOW}{dest}: {count}")
+						
+						# Virtual server analysis
+						if 'Vserver' in df.columns:
+							vservers = df['Vserver'].value_counts().head(5)
+							print(f"  {Fore.CYAN}Virtual Servers:")
+							for vserver, count in vservers.items():
+								print(f"    {Fore.YELLOW}{vserver}: {count}")
+						
+						# Source and destination address patterns
+						if 'SourceAddress' in df.columns and 'DestinationAddress' in df.columns:
+							unique_sources = df['SourceAddress'].nunique()
+							unique_dests = df['DestinationAddress'].nunique()
+							print(f"  {Fore.CYAN}Connection Diversity - Unique Sources: {Fore.YELLOW}{unique_sources} {Fore.CYAN}Unique Destinations: {Fore.YELLOW}{unique_dests}")
+				
+				# Time-based analysis
+				if 'timestamp' in df.columns:
+					df['hour'] = pd.to_datetime(df['timestamp']).dt.hour
+					hourly_activity = df['hour'].value_counts().sort_index()
+					print(f"  {Fore.CYAN}Hourly Activity Distribution:")
+					for hour, count in hourly_activity.head(10).items():
+						print(f"    {Fore.YELLOW}Hour {hour:02d}: {count} events")
+				
 				print(f'{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
 				for res in results.get('hits').get('hits')[:args.maxoutput]:
 					res_msg = res.get('_source')

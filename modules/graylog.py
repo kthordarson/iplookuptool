@@ -48,7 +48,7 @@ async def graylog_search_ip(ip_address, range=86400):
 		# q='RemoteMGNT'
 		# range=(86400)
 		try:
-			res = await client.search(body=query, size=10000)
+			res = await client.search(body=query, size=5000)
 		except Exception as e:
 			logger.error(f'graylog search error: {e} {type(e)}')
 			raise e
@@ -100,7 +100,31 @@ def summarize_graylog_results(search_results):
 	if not search_results or not search_results.get('hits', {}).get('hits'):
 		return {
 			'total_results': 0,
-			'summary': 'No results found'
+			'results_analyzed': 0,
+			'summary': 'No results found',
+			'log_types': {},
+			'event_types': {},
+			'top_actions': {},
+			'top_source_ips': {},
+			'top_dest_ips': {},
+			'top_devices': {},
+			'top_services': {},
+			'top_countries': {},
+			'top_modules': {},
+			'top_vservers': {},
+			'top_destinations': {},
+			'top_source_addresses': {},
+			'traffic_stats': {
+				'total_bytes_received': 0,
+				'total_bytes_sent': 0,
+				'unique_source_count': 0,
+				'unique_destination_count': 0
+			},
+			'time_range': {
+				'earliest': None,
+				'latest': None,
+				'count': 0
+			}
 		}
 	try:
 		hits = search_results.get('hits', {}).get('hits', [])
@@ -108,7 +132,31 @@ def summarize_graylog_results(search_results):
 		logger.error(f'Error extracting hits from search results: {e}')
 		return {
 			'total_results': 0,
-			'summary': 'Invalid search results format'
+			'results_analyzed': 0,
+			'summary': 'Invalid search results format',
+			'log_types': {},
+			'event_types': {},
+			'top_actions': {},
+			'top_source_ips': {},
+			'top_dest_ips': {},
+			'top_devices': {},
+			'top_services': {},
+			'top_countries': {},
+			'top_modules': {},
+			'top_vservers': {},
+			'top_destinations': {},
+			'top_source_addresses': {},
+			'traffic_stats': {
+				'total_bytes_received': 0,
+				'total_bytes_sent': 0,
+				'unique_source_count': 0,
+				'unique_destination_count': 0
+			},
+			'time_range': {
+				'earliest': None,
+				'latest': None,
+				'count': 0
+			}
 		}
 	try:
 		total_results = search_results.get('hits', {}).get('total', {}).get('value', 0)
@@ -116,7 +164,31 @@ def summarize_graylog_results(search_results):
 		logger.error(f'Error extracting total results: {e}')
 		return {
 			'total_results': 0,
-			'summary': 'Invalid search results format'
+			'results_analyzed': 0,
+			'summary': 'Invalid search results format',
+			'log_types': {},
+			'event_types': {},
+			'top_actions': {},
+			'top_source_ips': {},
+			'top_dest_ips': {},
+			'top_devices': {},
+			'top_services': {},
+			'top_countries': {},
+			'top_modules': {},
+			'top_vservers': {},
+			'top_destinations': {},
+			'top_source_addresses': {},
+			'traffic_stats': {
+				'total_bytes_received': 0,
+				'total_bytes_sent': 0,
+				'unique_source_count': 0,
+				'unique_destination_count': 0
+			},
+			'time_range': {
+				'earliest': None,
+				'latest': None,
+				'count': 0
+			}
 		}
 	
 	# Extract all _source data
@@ -131,6 +203,16 @@ def summarize_graylog_results(search_results):
 	devices = Counter()
 	services = Counter()
 	countries = Counter()
+	modules = Counter()
+	vservers = Counter()
+	destinations = Counter()
+	source_addresses = Counter()
+	
+	# For Citrix NetScaler data
+	total_bytes_recv = 0
+	total_bytes_sent = 0
+	unique_sources = set()
+	unique_destinations = set()
 	
 	# Common field mappings for different log types
 	for source in sources:
@@ -147,7 +229,7 @@ def summarize_graylog_results(search_results):
 			actions[source['action']] += 1
 		
 		# Source IPs
-		for ip_field in ['srcip', 'Remote_ip', 'ClientIP', 'source']:
+		for ip_field in ['srcip', 'Remote_ip', 'ClientIP', 'source','SourceAddress','VserverAddress','NatIPaddress']:
 			if ip_field in source and source[ip_field]:
 				try:
 					# Only process if it's a string (IP address)
@@ -179,6 +261,36 @@ def summarize_graylog_results(search_results):
 		for country_field in ['srccountry', 'dstcountry']:
 			if country_field in source and source[country_field]:
 				countries[source[country_field]] += 1
+		
+		# Additional analysis for Citrix NetScaler data
+		if 'module' in source:
+			modules[source['module']] += 1
+		
+		if 'Vserver' in source:
+			vservers[source['Vserver']] += 1
+		
+		if 'Destination' in source:
+			destinations[source['Destination']] += 1
+		
+		if 'SourceAddress' in source:
+			source_addresses[source['SourceAddress']] += 1
+			unique_sources.add(source['SourceAddress'])
+		
+		if 'DestinationAddress' in source:
+			unique_destinations.add(source['DestinationAddress'])
+		
+		# Traffic analysis
+		if 'Total_bytes_recv' in source:
+			try:
+				total_bytes_recv += int(source['Total_bytes_recv'])
+			except (ValueError, TypeError):
+				pass
+		
+		if 'Total_bytes_send' in source:
+			try:
+				total_bytes_sent += int(source['Total_bytes_send'])
+			except (ValueError, TypeError):
+				pass
 	
 	# Time range analysis
 	timestamps = []
@@ -206,6 +318,16 @@ def summarize_graylog_results(search_results):
 		'top_devices': dict(devices.most_common(10)),
 		'top_services': dict(services.most_common(10)),
 		'top_countries': dict(countries.most_common(10)),
+		'top_modules': dict(modules.most_common(10)),
+		'top_vservers': dict(vservers.most_common(10)),
+		'top_destinations': dict(destinations.most_common(10)),
+		'top_source_addresses': dict(source_addresses.most_common(10)),
+		'traffic_stats': {
+			'total_bytes_received': total_bytes_recv,
+			'total_bytes_sent': total_bytes_sent,
+			'unique_source_count': len(unique_sources),
+			'unique_destination_count': len(unique_destinations)
+		},
 		'time_range': {
 			'earliest': min(timestamps) if timestamps else None,
 			'latest': max(timestamps) if timestamps else None,
@@ -220,10 +342,14 @@ def print_graylog_summary(search_results):
 	Print a formatted summary of graylog search results
 	"""
 	summary = summarize_graylog_results(search_results)
-	
-	print(f"\n{Fore.LIGHTBLUE_EX}=== Graylog Search Results Summary ==={Style.RESET_ALL}")
-	print(f"{Fore.CYAN}Total Results: {Fore.YELLOW}{summary['total_results']}")
-	print(f"{Fore.CYAN}Analyzed: {Fore.YELLOW}{summary['results_analyzed']}")
+	try:
+		print(f"\n{Fore.LIGHTBLUE_EX}=== Graylog Search Results Summary ==={Style.RESET_ALL}")
+		print(f"{Fore.CYAN}Total Results: {Fore.YELLOW}{summary['total_results']}")
+		print(f"{Fore.CYAN}Analyzed: {Fore.YELLOW}{summary['results_analyzed']}")
+	except KeyError as e:
+		logger.error(f'Error printing graylog summary: {e} summary={summary}')
+		print(f"{Fore.RED}Error: Invalid search results format{Style.RESET_ALL}")
+		return
 	
 	if summary['log_types']:
 		print(f"\n{Fore.LIGHTBLUE_EX}Log Types:")
@@ -265,10 +391,33 @@ def print_graylog_summary(search_results):
 		for country, count in summary['top_countries'].items():
 			print(f"  {Fore.CYAN}{country}: {Fore.YELLOW}{count}")
 	
+	if summary['top_modules']:
+		print(f"\n{Fore.LIGHTBLUE_EX}Top Modules:")
+		for module, count in summary['top_modules'].items():
+			print(f"  {Fore.CYAN}{module}: {Fore.YELLOW}{count}")
+	
+	if summary['top_vservers']:
+		print(f"\n{Fore.LIGHTBLUE_EX}Top Virtual Servers:")
+		for vserver, count in summary['top_vservers'].items():
+			print(f"  {Fore.CYAN}{vserver}: {Fore.YELLOW}{count}")
+	
+	if summary['top_destinations']:
+		print(f"\n{Fore.LIGHTBLUE_EX}Top Destinations:")
+		for dest, count in summary['top_destinations'].items():
+			print(f"  {Fore.CYAN}{dest}: {Fore.YELLOW}{count}")
+	
+	if summary['traffic_stats']['total_bytes_received'] > 0 or summary['traffic_stats']['total_bytes_sent'] > 0:
+		print(f"\n{Fore.LIGHTBLUE_EX}Traffic Statistics:")
+		print(f"  {Fore.CYAN}Total Bytes Received: {Fore.YELLOW}{summary['traffic_stats']['total_bytes_received']:,}")
+		print(f"  {Fore.CYAN}Total Bytes Sent: {Fore.YELLOW}{summary['traffic_stats']['total_bytes_sent']:,}")
+		print(f"  {Fore.CYAN}Unique Sources: {Fore.YELLOW}{summary['traffic_stats']['unique_source_count']}")
+		print(f"  {Fore.CYAN}Unique Destinations: {Fore.YELLOW}{summary['traffic_stats']['unique_destination_count']}")
+	
 	if summary['time_range']['earliest'] and summary['time_range']['latest']:
 		print(f"\n{Fore.LIGHTBLUE_EX}Time Range:")
 		print(f"  {Fore.CYAN}Earliest: {Fore.YELLOW}{summary['time_range']['earliest']}")
 		print(f"  {Fore.CYAN}Latest: {Fore.YELLOW}{summary['time_range']['latest']}")
+		print(f"  {Fore.CYAN}Total Events with Timestamps: {Fore.YELLOW}{summary['time_range']['count']}")
 	
 	print(f"{Style.RESET_ALL}")
 
