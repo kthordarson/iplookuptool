@@ -78,10 +78,12 @@ async def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 		logger.error(f'[search_remote_url] {type(e)} {e} url = {url}')
 		return None
 
-async def search_devicenetworkevents(aadtoken, remoteip, limit=100, maxdays=3):
+async def search_devicenetworkevents(aadtoken, query, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	# query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
-	query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+	# query = f"""let matchstring = "webengine4";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (InitiatingProcessCommandLine contains matchstring) | take {limit} """
+	# query = f"""let deviceid = "d3e00c5a2830c8c26c5ffe6b2418e14eb8f70bf6";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (DeviceId = matchstring) | take {limit} """
+	# query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
 	data = {'Query': query}
 	# print(f'query = {query}')
 	headers = {

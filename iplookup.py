@@ -274,7 +274,10 @@ async def main(args):
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
 				if args.debug:
 					logger.debug(f'searching defender for {addr}')
-				defenderdata = await search_devicenetworkevents(token, addr, limit=100, maxdays=1)
+					maxdays=1
+					limit=100
+					query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+				defenderdata = await search_devicenetworkevents(token, query)
 				if args.debug:
 					logger.debug(f'defender returned {len(defenderdata.get("Results"))} ... searching azure logs for {addr}')
 				azuredata = await get_azure_signinlogs(addr)
@@ -323,7 +326,12 @@ async def main(args):
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}')
 				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
-				defenderdata = await search_devicenetworkevents(token, addr, limit=100, maxdays=1)
+
+				maxdays=1
+				limit=100
+				query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+
+				defenderdata = await search_devicenetworkevents(token, query)
 				azuredata = await get_azure_signinlogs(addr)
 				azuredata_f = await get_azure_signinlogs_failed(addr)
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
@@ -385,7 +393,10 @@ async def main(args):
 			else:
 				print(f'{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 			try:
-				defenderdata = await search_devicenetworkevents(token, args.host, limit=100, maxdays=3)
+				maxdays=1
+				limit=100
+				query = f"""let ip = "{args.host}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+				defenderdata = await search_devicenetworkevents(token, query)
 				if len(defenderdata.get('Results')) >= 1:
 					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 					results = defenderdata.get('Results')
