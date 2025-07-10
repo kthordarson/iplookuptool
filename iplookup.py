@@ -184,8 +184,10 @@ async def main(args):
 			df = pd.DataFrame([k['_source'] for k in results.get('hits').get('hits')])
 			if args.debug:
 				logger.debug(f'graylog search returned {results.get("hits").get("total").get("value")} results for {args.host}')
+				print(f'[df] {df} {df.columns} ')
+				print(f'[df] {df.head()}')
 			if results.get('hits').get('total').get('value') > 0:
-				print(f'{Fore.GREEN}graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
+				print(f'{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
 				for res in results.get('hits').get('hits')[:args.maxoutput]:
 					res_msg = res.get('_source')
 					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
@@ -201,13 +203,11 @@ async def main(args):
 						print(df.groupby(['action', 'msg', 'dstip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
 					except KeyError as e:
 						logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
-				else:
-					print(f'{Fore.YELLOW}no msg column in graylog data - check graylog data structure. {df.columns}')
-				try:
 					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by type and ip:')
 					print(df.groupby(['action','type', 'subtype', 'srcip', 'dstip'])['timestamp'].agg(['count']).sort_values(by='count', ascending=False).head(15))
-				except KeyError as e:
-					logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
+					print(df.groupby(['action', 'srcip'])['srcip'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+				if 'citrixtype' in df.columns or 'request' in df.columns:
+					print(f'{Fore.LIGHTBLUE_EX}Citrix data found - processing citrixtype column')
 					# print(df.groupby(['action', 'srcip'])['srcip'].agg(['count']).sort_values(by='count', ascending=False).head(15))
 			else:
 				print(f'{Fore.YELLOW}no graylog data ({results.get('hits').get('total').get('value')}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
@@ -277,7 +277,7 @@ async def main(args):
 			results = None
 		if results:
 			ipaddres_set = set([k.get('message').get('dstip') for k in results.get('hits').get('hits')])
-			print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}')
+			print(f'{Fore.LIGHTBLUE_EX}[2] graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}')
 			token = await get_aad_token()
 			indicators = await get_indicators(token, args.host)
 			for addr in ipaddres_set:
@@ -290,7 +290,7 @@ async def main(args):
 				glres = await graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
 				if glres.get('hits').get('total').get('value') > 0:
-					print(f'{Fore.LIGHTBLUE_EX}graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}')
+					print(f'{Fore.LIGHTBLUE_EX}[3] graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}')
 					for res in glres.get('hits').get('hits')[:args.maxoutput]:
 						print(f"{Fore.CYAN}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('srcip')} {res_msg.get('dstip')} {res_msg.get('url')}")
 				if len(defenderdata.get("Results")) > 0:
