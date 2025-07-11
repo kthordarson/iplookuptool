@@ -46,7 +46,27 @@ async def get_aad_token():
 async def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	# query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
-	query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents, DeviceFileEvents, DeviceLogonEvents, DeviceEvents, EmailEvents, IdentityLogonEvents, IdentityQueryEvents, IdentityDirectoryEvents, CloudAppEvents, AADSignInEventsBeta, AADSpnSignInEventsBeta) Timestamp between (ago({maxdays}d) .. now()) and RemoteIP == ip | take {limit} """
+	# old_query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents, DeviceFileEvents, DeviceLogonEvents, DeviceEvents, EmailEvents, IdentityLogonEvents, IdentityQueryEvents, IdentityDirectoryEvents, CloudAppEvents, AADSignInEventsBeta, AADSpnSignInEventsBeta, AlertEvidence, UrlClickEvents) Timestamp between (ago({maxdays}d) .. now()) and (RemoteIP == ip or IPAddress == ip) | take {limit} """
+	query = f"""let ip = "{remoteip}";
+	search in (
+	AADSignInEventsBeta,
+	AADSpnSignInEventsBeta,
+	AlertEvidence,
+	BehaviorEntities,
+	CloudAppEvents,
+	CloudAuditEvents,
+	DeviceEvents,
+	DeviceFileEvents,
+	DeviceInfoDeviceLogonEvents,
+	DeviceNetworkEvents,
+	DeviceNetworkInfo,
+	EmailEvents,
+	ExposureGraphNodes,
+	IdentityDirectoryEvents,
+	IdentityLogonEvents,
+	IdentityQueryEvents,
+	UrlClickEventsUrlClickEvents) Timestamp between (ago({maxdays}d) .. now()) and (RemoteIP == ip or IPAddress == ip or RequestSourceIP == ip or FileOriginIP == ip or SenderIPv4 == ip or DestinationIPAddress == ip or PublicIP == ip or LocalIP == ip or NodeProperties.rawData.publicIP == ip) | take {limit} """
+	# 
 	data = {'Query': query}
 	# print(f'query = {query}')
 	headers = {
