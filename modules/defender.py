@@ -79,6 +79,46 @@ async def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 			jresp = await response.json()
 			return jresp
 
+async def search_account_upn(upn, aadtoken, limit=100, maxdays=3):
+	# upn = "user@domain.com" format
+	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
+	query = f"""let upn = "{upn}";
+	search in (AlertEvidence, BehaviorEntities, BehaviorInfo, AADSignInEventsBeta,
+	IdentityInfo, IdentityLogonEvents, UrlClickEvents, DeviceEvents, DeviceFileEvents,
+	DeviceImageLoadEvents, DeviceLogonEvents, DeviceNetworkEvents, DeviceProcessEvents,
+	DeviceRegistryEvents, CloudAppEvents, EmailAttachmentInfo, EmailEvents, 
+	EmailPostDeliveryEvents, CloudAuditEvents, ExposureGraphNodes)
+	Timestamp between (ago({maxdays}d) .. now())
+	and (
+	// AlertEvidence BehaviorEntities BehaviorInfo DeviceProcessEvents
+	// AADSignInEventsBeta IdentityInfo IdentityLogonEvents UrlClickEvents 
+	AccountUpn == upn
+	// DeviceEvents DeviceFileEvents DeviceImageLoadEvents DeviceLogonEvents
+	// DeviceNetworkEvents DeviceProcessEvents DeviceRegistryEvents 
+	or InitiatingProcessAccountUpn == upn
+	// CloudAppEvents
+	or tostring(RawEventData.UserId) == upn
+	// EmailAttachmentInfo EmailEvents EmailPostDeliveryEvents  
+	or SenderFromAddress == upn
+	or RecipientEmailAddress == upn
+	// CloudAuditEvents 
+	or RawEventData contains upn
+	//ExposureGraphNodes
+	or NodeProperties.rawData contains upn
+	)"""
+
+	data = {'Query': query}
+	# print(f'query = {query}')
+	headers = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json',
+		'Authorization': "Bearer " + aadtoken
+	}
+	async with aiohttp.ClientSession() as session:
+		async with session.post(url, json=data, headers=headers) as response:
+			jresp = await response.json()
+			return jresp
+
 async def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
