@@ -49,22 +49,10 @@ async def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 	# old_query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents, DeviceFileEvents, DeviceLogonEvents, DeviceEvents, EmailEvents, IdentityLogonEvents, IdentityQueryEvents, IdentityDirectoryEvents, CloudAppEvents, AADSignInEventsBeta, AADSpnSignInEventsBeta, AlertEvidence, UrlClickEvents) Timestamp between (ago({maxdays}d) .. now()) and (RemoteIP == ip or IPAddress == ip) | take {limit} """
 	query = f"""let ip = "{remoteip}";
 	search in (
-	AADSignInEventsBeta,
-	AADSpnSignInEventsBeta,
-	AlertEvidence,
-	BehaviorEntities,
-	CloudAppEvents,
-	CloudAuditEvents,
-	DeviceEvents,
-	DeviceFileEvents,
-	DeviceInfoDeviceLogonEvents,
-	DeviceNetworkEvents,
-	DeviceNetworkInfo,
-	EmailEvents,
-	ExposureGraphNodes,
-	IdentityDirectoryEvents,
-	IdentityLogonEvents,
-	IdentityQueryEvents,
+	AADSignInEventsBeta,AADSpnSignInEventsBeta,AlertEvidence,BehaviorEntities,
+	CloudAppEvents,CloudAuditEvents,DeviceEvents,DeviceFileEvents,DeviceInfoDeviceLogonEvents,
+	DeviceNetworkEvents,DeviceNetworkInfo,EmailEvents,ExposureGraphNodes,IdentityDirectoryEvents,
+	IdentityLogonEvents,IdentityQueryEvents,
 	UrlClickEventsUrlClickEvents) Timestamp between (ago({maxdays}d) .. now()) and (RemoteIP == ip or IPAddress == ip or RequestSourceIP == ip or FileOriginIP == ip or SenderIPv4 == ip or DestinationIPAddress == ip or PublicIP == ip or LocalIP == ip or NodeProperties.rawData.publicIP == ip) | take {limit} """
 	# 
 	data = {'Query': query}
@@ -80,7 +68,7 @@ async def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 			return jresp
 
 async def search_account_upn(upn, aadtoken, limit=100, maxdays=3):
-	# upn = "user@domain.com" format
+	# upn = "user@domain.com" format, case sensitive
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	query = f"""let upn = "{upn}";
 	search in (AlertEvidence, BehaviorEntities, BehaviorInfo, AADSignInEventsBeta,
@@ -90,20 +78,12 @@ async def search_account_upn(upn, aadtoken, limit=100, maxdays=3):
 	EmailPostDeliveryEvents, CloudAuditEvents, ExposureGraphNodes)
 	Timestamp between (ago({maxdays}d) .. now())
 	and (
-	// AlertEvidence BehaviorEntities BehaviorInfo DeviceProcessEvents
-	// AADSignInEventsBeta IdentityInfo IdentityLogonEvents UrlClickEvents 
 	AccountUpn == upn
-	// DeviceEvents DeviceFileEvents DeviceImageLoadEvents DeviceLogonEvents
-	// DeviceNetworkEvents DeviceProcessEvents DeviceRegistryEvents 
 	or InitiatingProcessAccountUpn == upn
-	// CloudAppEvents
 	or tostring(RawEventData.UserId) == upn
-	// EmailAttachmentInfo EmailEvents EmailPostDeliveryEvents  
 	or SenderFromAddress == upn
 	or RecipientEmailAddress == upn
-	// CloudAuditEvents 
 	or RawEventData contains upn
-	//ExposureGraphNodes
 	or NodeProperties.rawData contains upn
 	)"""
 
