@@ -42,7 +42,7 @@ async def graylog_search_ip(ip_address, range=86400):
 	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
 	# ipaddr = args.host  # '31.209.157.27'
 	# query = {'size': 50,'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip', 'IpAddress']}}}
-	query = {'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip', 'IpAddress', 'src', 'dst', 'ClientIP','VserverServiceIP','NatIPaddress','Source', 'SourceAddress','VserverAddress']}}}
+	query = {'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip', 'IpAddress', 'transip', 'src', 'dst', 'ClientIP','VserverServiceIP','NatIPaddress','Source', 'SourceAddress','VserverAddress']}}}
 	res = None
 	async with AsyncOpenSearch([os.environ.get('OPENSEARCHOST')], http_auth=(os.environ.get('OPENSEARCHAUTHPASS'), os.environ.get('OPENSEARCHAUTHPASS')), use_ssl=True, verify_certs=False, ssl_show_warn=False) as client:
 		# q='RemoteMGNT'
@@ -229,7 +229,7 @@ def summarize_graylog_results(search_results):
 			actions[source['action']] += 1
 		
 		# Source IPs
-		for ip_field in ['srcip', 'Remote_ip', 'ClientIP', 'source','SourceAddress','VserverAddress','NatIPaddress']:
+		for ip_field in ['srcip', 'Remote_ip', 'ClientIP', 'source','SourceAddress','VserverAddress','NatIPaddress', 'transip']:
 			if ip_field in source and source[ip_field]:
 				try:
 					# Only process if it's a string (IP address)

@@ -230,7 +230,7 @@ async def main(args):
 				print(f'{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
 				for res in results.get('hits').get('hits')[:args.maxoutput]:
 					res_msg = res.get('_source')
-					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
+					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
 				if 'msg' in df.columns:
 					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by srcip:')
@@ -238,11 +238,19 @@ async def main(args):
 						print(df.groupby(['action', 'msg', 'srcip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
 					except KeyError as e:
 						logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
+
 					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by dstip:')
 					try:
 						print(df.groupby(['action', 'msg', 'dstip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
 					except KeyError as e:
 						logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
+
+					# print(f'{Fore.LIGHTBLUE_EX}top 15 actions by transip:')
+					# try:
+					# 	print(df.groupby(['action', 'msg', 'transip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+					# except KeyError as e:
+					# 	logger.error(f'KeyError: {e} - check graylog data structure. {df.columns} {df.head(2)}')
+
 					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by type and ip:')
 					print(df.groupby(['action','type', 'subtype', 'srcip', 'dstip'])['timestamp'].agg(['count']).sort_values(by='count', ascending=False).head(15))
 					print(df.groupby(['action', 'srcip'])['srcip'].agg(['count']).sort_values(by='count', ascending=False).head(15))
