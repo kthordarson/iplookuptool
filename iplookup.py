@@ -184,6 +184,7 @@ async def main(args):
 			results = None
 		if results:
 			summary = summarize_graylog_results(results)
+			print(f'summary: {summary.keys()}')
 			print_graylog_summary(results)
 			df = pd.DataFrame([k['_source'] for k in results.get('hits').get('hits')])		
 			# Additional detailed analysis

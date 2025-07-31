@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from collections import Counter
 from opensearchpy import AsyncOpenSearch
 from loguru import logger
