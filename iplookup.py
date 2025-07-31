@@ -85,7 +85,9 @@ async def main(args):
 	if args.urlscanio:
 		try:
 			urlscandata = await search_urlscanio(args.host)
-			print(f'{Fore.LIGHTBLUE_EX}urlscanio data: {Fore.YELLOW}{len(urlscandata)} {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
+			print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
+			for res in urlscandata.get('results'):
+				print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
 		except Exception as e:
 			logger.error(f'unhandled {type(e)} {e}')
 
@@ -122,11 +124,11 @@ async def main(args):
 				print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
 
 	if args.ipwhois and ipaddress:
-		print(f'{Fore.LIGHTBLUE_EX}ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
+		# print(f'{Fore.LIGHTBLUE_EX}ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		ipaddress = ip_address(args.host)
 		if ipaddress.is_global:
 			whois_info = await get_ipwhois(args.host)
-			print(f'{Fore.LIGHTBLUE_EX}whois:{Fore.CYAN} {whois_info}')
+			print(f'{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}')
 		elif ipaddress.is_private:
 			print(f'{Fore.YELLOW}private address: {ipaddress}')
 
@@ -158,7 +160,7 @@ async def main(args):
 				else:
 					vtforecolor = Fore.GREEN
 				# print(f'{Fore.LIGHTBLUE_EX}vt {args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
-				print(f'{Fore.LIGHTBLUE_EX}vt {args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} malicious: {malicious}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
+				print(f'{Fore.LIGHTBLUE_EX}vt\t{args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} malicious: {malicious}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
 			for vendor in vt_res:
 				if vt_res.get(vendor).get('category') == 'malicious':
 					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
@@ -244,12 +246,6 @@ async def main(args):
 						print(df.groupby(['action', 'msg', 'dstip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
 					except KeyError as e:
 						logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
-
-					# print(f'{Fore.LIGHTBLUE_EX}top 15 actions by transip:')
-					# try:
-					# 	print(df.groupby(['action', 'msg', 'transip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
-					# except KeyError as e:
-					# 	logger.error(f'KeyError: {e} - check graylog data structure. {df.columns} {df.head(2)}')
 
 					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by type and ip:')
 					print(df.groupby(['action','type', 'subtype', 'srcip', 'dstip'])['timestamp'].agg(['count']).sort_values(by='count', ascending=False).head(15))
