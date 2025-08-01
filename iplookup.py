@@ -85,9 +85,12 @@ async def main(args):
 	if args.urlscanio:
 		try:
 			urlscandata = await search_urlscanio(args.host)
-			print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
-			for res in urlscandata.get('results'):
-				print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
+			if urlscandata:
+				print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
+				for res in urlscandata.get('results'):
+					print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
+			else:
+				logger.warning(f'no urlscanio data for {args.host} urlscandata: {urlscandata}')
 		except Exception as e:
 			logger.error(f'unhandled {type(e)} {e}')
 
@@ -183,8 +186,8 @@ async def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			summary = summarize_graylog_results(results)
-			print(f'summary: {summary.keys()}')
+			# summary = summarize_graylog_results(results)
+			# print(f'summary: {summary.keys()}')
 			print_graylog_summary(results)
 			df = pd.DataFrame([k['_source'] for k in results.get('hits').get('hits')])		
 			# Additional detailed analysis
@@ -232,8 +235,12 @@ async def main(args):
 				
 				print(f'{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}')
 				for res in results.get('hits').get('hits')[:args.maxoutput]:
+					res_idx = res.get('_index')
 					res_msg = res.get('_source')
-					print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
+					if 'msgraph' in res_idx:
+						print(f"{Fore.YELLOW} {res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('RequestMethod')} {res_msg.get('displayName')} {res_msg.get('IpAddress')} {res_msg.get('dstip')} {res_msg.get('RequestUri')}")
+					else:
+						print(f"{Fore.YELLOW}{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
 				if 'msg' in df.columns:
 					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by srcip:')
