@@ -116,7 +116,7 @@ async def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 				return jresp
 	except (aiohttp.ClientError, ConnectionResetError) as e:
 		logger.error(f'[search_remote_url] {type(e)} {e} url = {url}')
-		return None
+		return {}
 
 async def search_devicenetworkevents(aadtoken, query, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"

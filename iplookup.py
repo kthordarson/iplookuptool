@@ -11,7 +11,7 @@ from myglapi.rest import ApiException
 from modules.virustotal import get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
-from modules.graylog import graylog_search, graylog_search_ip, summarize_graylog_results, print_graylog_summary
+from modules.graylog import graylog_search, graylog_search_ip, print_graylog_summary
 from modules.defender import get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 # from modules.xforce import get_xforce_ipreport
@@ -65,6 +65,7 @@ async def main(args):
 		infourl = await get_virustotal_scanurls(args.url)
 		vturlinfo = await get_virustotal_urlinfo(infourl)
 		vt_url_resultdata = vturlinfo.get('data').get('attributes').get('results')
+		defenderdata = {}
 		try:
 			token = await get_aad_token()
 			defenderdata = await search_remote_url(args.url, token, limit=100, maxdays=3)
@@ -76,9 +77,9 @@ async def main(args):
 			for vendor in vt_url_resultdata:
 				if vt_url_resultdata.get(vendor).get('category') == 'malicious':
 					print(f"{Fore.CYAN}   Vendor: {vendor} result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
-			print(f"{Fore.LIGHTBLUE_EX}defender data:{Fore.YELLOW} {len(defenderdata.get("Results"))} {Style.RESET_ALL}")
-			if len(defenderdata.get('Results')) >= 1:
-				results = defenderdata.get('Results')
+			print(f"{Fore.LIGHTBLUE_EX}defender data:{Fore.YELLOW} {len(defenderdata.get("Results", []))} {Style.RESET_ALL}")
+			if len(defenderdata.get('Results', [])) >= 1:
+				results = defenderdata.get('Results', [])
 				for res in results[:args.maxoutput]:
 					print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 
@@ -104,14 +105,14 @@ async def main(args):
 			logger.error(f'xforce error: {xfi.get("error")} xfi: {xfi}')
 		else:
 			try:
-				spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history')])
-				scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history')])
-				anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history')])
-				dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history')])
-				malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history')])
-				botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history')])
-				boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history')])
-				crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history')])
+				spamscore = sum([k.get('cats').get('Spam',0) for k in xfi.get('history', [])])
+				scanscore = sum([k.get('cats').get('Scanning IPs',0) for k in xfi.get('history', [])])
+				anonscore = sum([k.get('cats').get('Anonymisation Services',0) for k in xfi.get('history', [])])
+				dynascore = sum([k.get('cats').get('Dynamic IPs',0) for k in xfi.get('history', [])])
+				malwscore = sum([k.get('cats').get('Malware',0) for k in xfi.get('history', [])])
+				botsscore = sum([k.get('cats').get('Bots',0) for k in xfi.get('history', [])])
+				boccscore = sum([k.get('cats').get('Botnet Command and Control Server',0) for k in xfi.get('history', [])])
+				crmiscore = sum([k.get('cats').get('Cryptocurrency Mining',0) for k in xfi.get('history', [])])
 				xscore = xfi.get('score')
 				print(f'{Fore.LIGHTBLUE_EX}xforceinfo:  {Fore.YELLOW}score {xscore}: spamscore={spamscore} scanscore:{scanscore} anonscore:{anonscore} dynascore:{dynascore} malwscore:{malwscore} botsscore:{botsscore} boccscore:{boccscore} crmiscore:{crmiscore}')
 			except Exception as e:
@@ -136,37 +137,38 @@ async def main(args):
 			print(f'{Fore.YELLOW}private address: {ipaddress}')
 
 	if args.virustotal:
+		vtinfo = {}
 		vtinfo = await get_vt_ipinfo(args)
 		if vtinfo:
-			vt_las = vtinfo.last_analysis_stats
-			vt_res = vtinfo.last_analysis_results
+			vt_las = vtinfo.get('last_analysis_stats', {})
+			vt_res = vtinfo.get('last_analysis_results', {})
 			try:
-				vt_aso = vtinfo.as_owner if hasattr(vtinfo, 'as_owner') else None
+				vt_aso = vtinfo.get('as_owner', 'None')
 				# vt_aso = vtinfo.as_owner
-				vt_tv = vtinfo.total_votes if hasattr(vtinfo, 'total_votes') else None
+				vt_tv = vtinfo.get('total_votes', {})
 			except AttributeError as e:
 				logger.error(f'virustotal error: {e} {vt_las} {vt_res} vtinfo: {vtinfo}')
-				vt_aso = None
-				vt_tv = None
+				vt_aso = {}
+				vt_tv = {}
 			if vt_tv:
 				malicious = 0
 				try:
 					malicious += int(vt_tv.get('malicious',0))
 				except Exception as e:
 					logger.error(f'{e} {type(e)}')
-				try:
-					malicious += int(vt_las.get('malicious',0))
-				except Exception as e:
-					logger.error(f'{e} {type(e)}')
+				# try:
+				# 	malicious += int(vt_las.get('malicious',0))
+				# except Exception as e:
+				# 	logger.error(f'{e} {type(e)}')
 				if malicious > 0:
 					vtforecolor = Fore.RED
 				else:
 					vtforecolor = Fore.GREEN
 				# print(f'{Fore.LIGHTBLUE_EX}vt {args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} {vt_tv}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
 				print(f'{Fore.LIGHTBLUE_EX}vt\t{args.host} asowner:{Fore.CYAN} {vt_aso} vtvotes: {vtforecolor} malicious: {malicious}  {Fore.CYAN} vt last_analysis_stats: {vt_las}')
-			for vendor in vt_res:
-				if vt_res.get(vendor).get('category') == 'malicious':
-					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ")
+			for vendor in vt_res:  # type: ignore
+				if vt_res.get(vendor).get('category') == 'malicious':  # type: ignore
+					print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN} result: {vt_res.get(vendor).get('result')} method: {vt_res.get(vendor).get('method')} ") #  type: ignore
 
 	if args.abuseipdb:
 		abuseipdbdata = await get_abuseipdb_data(args.host)
@@ -186,8 +188,6 @@ async def main(args):
 			logger.error(f'graylog search error: {e} {type(e)}')
 			results = None
 		if results:
-			# summary = summarize_graylog_results(results)
-			# print(f'summary: {summary.keys()}')
 			print_graylog_summary(results)
 			df = pd.DataFrame([k['_source'] for k in results.get('hits').get('hits')])		
 			# Additional detailed analysis
@@ -242,7 +242,7 @@ async def main(args):
 					else:
 						print(f"{Fore.YELLOW}{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
-				if 'msg' in df.columns:
+				if 'msg' in df.columns and 'srcip' in df.columns:
 					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by srcip:')
 					try:
 						print(df.groupby(['action', 'msg', 'srcip'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
@@ -261,6 +261,12 @@ async def main(args):
 				if 'citrixtype' in df.columns or 'request' in df.columns:
 					print(f'{Fore.LIGHTBLUE_EX}Citrix data found - processing citrixtype column')
 					# print(df.groupby(['action', 'srcip'])['srcip'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+				if 'msg' in df.columns and 'remip' in df.columns:
+					print(f'{Fore.LIGHTBLUE_EX}top 15 actions by remip:')
+					try:
+						print(df.groupby(['action', 'msg', 'remip','username'])['msg'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+					except KeyError as e:
+						logger.error(f'KeyError: {e} - check graylog data structure. {df.columns}')
 			else:
 				print(f'{Fore.YELLOW}no graylog data ({results.get('hits').get('total').get('value')}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 		else:
@@ -268,6 +274,7 @@ async def main(args):
 
 	if args.sslvpnloginfail and args.graylog:
 		searchquery = 'action:ssl-login-fail'
+		res_msg = {}
 		try:
 			results = await graylog_search(query=searchquery, range=86400)
 		except ApiException as e:
@@ -286,9 +293,9 @@ async def main(args):
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}')
 				if args.debug:
 					logger.debug(f'searching defender for {addr}')
-					maxdays=1
-					limit=100
-					query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+				maxdays=1
+				limit=100
+				query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
 				defenderdata = await search_devicenetworkevents(token, query)
 				if args.debug:
 					logger.debug(f'defender returned {len(defenderdata.get("Results"))} ... searching azure logs for {addr}')
@@ -300,8 +307,8 @@ async def main(args):
 					logger.debug(f'azure failed signin logs returned {len(azuredata_f)} ... searching graylog for {addr}')
 				glres = await graylog_search_ip(addr, range=86400)
 				if args.debug:
-					logger.debug(f'graylog search returned {glres.get("hits").get("total").get("value")} results for {addr}')
-				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')
+					logger.debug(f'graylog search returned {glres.get("hits").get("total").get("value")} results for {addr}')  # type: ignore
+				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')  # type: ignore
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW}{len(defenderdata.get("Results"))} for {Fore.CYAN}{addr}')
 					results = defenderdata.get('Results')
@@ -311,14 +318,14 @@ async def main(args):
 					print(f'{Fore.LIGHTBLUE_EX}azure found {Fore.YELLOW}{len(azuredata)}')
 					for logentry in azuredata[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
-						status = json.loads(logentry.get('Status'))
-						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						status = json.loads(logentry.get('Status'))  # type: ignore
+						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
 				if len(azuredata_f) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}azure failed signins found {Fore.YELLOW}{len(azuredata_f)}')
 					for logentry in azuredata_f[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
-						status = json.loads(logentry.get('Status'))
-						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						status = json.loads(logentry.get('Status'))  # type: ignore
+						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
 
 	if args.ftgd_blk and args.graylog:
 		searchquery = 'eventtype:ftgd_blk'
@@ -337,7 +344,7 @@ async def main(args):
 			indicators = await get_indicators(token, args.host)
 			for addr in ipaddres_set:
 				print(f'{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}')
-				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]
+				[print(f'{Fore.CYAN}   indicator for {addr} found: {k}') for k in indicators if addr in str(k.values())]  # type: ignore
 
 				maxdays=1
 				limit=100
@@ -349,10 +356,10 @@ async def main(args):
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = await graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
-				if glres.get('hits').get('total').get('value') > 0:
-					print(f'{Fore.LIGHTBLUE_EX}[3] graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}')
-					for res in glres.get('hits').get('hits')[:args.maxoutput]:
-						print(f"{Fore.CYAN}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('srcip')} {res_msg.get('dstip')} {res_msg.get('url')}")
+				if glres.get('hits').get('total').get('value') > 0:  # type: ignore
+					print(f'{Fore.LIGHTBLUE_EX}[3] graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}')  # type: ignore
+					for res in glres.get('hits').get('hits')[:args.maxoutput]:  # type: ignore
+						print(f"{Fore.CYAN}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('srcip')} {res_msg.get('dstip')} {res_msg.get('url')}")  # type: ignore
 				if len(defenderdata.get("Results")) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW} {len(defenderdata.get("Results"))} {Fore.LIGHTBLUE_EX}for{Fore.CYAN} {addr}')
 					results = defenderdata.get('Results')
@@ -362,14 +369,14 @@ async def main(args):
 					print(f'{Fore.LIGHTBLUE_EX} azure found {Fore.YELLOW} {len(azuredata)}')
 					for logentry in azuredata[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
-						status = json.loads(logentry.get('Status'))
-						print(f"   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						status = json.loads(logentry.get('Status'))  # type: ignore
+						print(f"   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
 				if len(azuredata_f) > 0:
 					print(f'{Fore.LIGHTBLUE_EX}azure failed signins found {Fore.YELLOW}{len(azuredata_f)}')
 					for logentry in azuredata_f[:args.maxoutput]:
 						timest = logentry.get('TimeGenerated')
-						status = json.loads(logentry.get('Status'))
-						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+						status = json.loads(logentry.get('Status'))  # type: ignore
+						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
 
 	if args.azure:
 		azuredata = await get_azure_signinlogs(args.host)
@@ -380,8 +387,8 @@ async def main(args):
 			if len(azuredata) > 0:
 				for logentry in azuredata[:args.maxoutput]:
 					timest = logentry.get('TimeGenerated')
-					status = json.loads(logentry.get('Status'))
-					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")
+					status = json.loads(logentry.get('Status'))  # type: ignore
+					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
 			else:
 				print(f'{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}')
 
@@ -398,8 +405,8 @@ async def main(args):
 				logger.error(e)
 				os._exit(-1)
 			# if len([k for k in indicators if k.get('indicatorValue') == args.host]) <= 1:
-			if len([k for k in indicators if args.host in str(k.values())]) >= 1:
-				indx = [k for k in indicators if k.get('indicatorValue') == args.host]
+			if len([k for k in indicators if args.host in str(k.values())]) >= 1:  # type: ignore
+				indx = [k for k in indicators if k.get('indicatorValue') == args.host]  # type: ignore
 				for ind in indx:
 					print(f'{Fore.RED}indicator found: {Fore.GREEN} {ind.get("title")} {ind.get("description")} {Fore.LIGHTBLUE_EX}type: {ind.get("indicatorType")} action: {ind.get("action")} {Fore.LIGHTGREEN_EX} created by: {ind.get("createdBy")}')
 			else:

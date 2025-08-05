@@ -74,17 +74,17 @@ async def get_virustotal_objects(ipaddr, limit=10, relation='comments'):
 			return jsonresults
 
 async def get_vt_ipinfo(args):
-	vtipinfo = None
+	vtipinfo = {}
 	try:
 		async with Client(VTAPIKEY) as client:
 			vtipinfo = await client.get_object_async(f'/ip_addresses/{args.host}')
 	except Exception as e:
 		logger.error(f'[!] unhandled {e} {type(e)} addr: {args.host}')
-		return None
-	return vtipinfo
+	finally:
+		return vtipinfo
 
 async def do_vt_search(ipaddr, limit=10):
 	async with Client(VTAPIKEY) as client:
-		async for obj in client.iterator_async("/intelligence/search", params={"query": ipaddr}, limit=limit):
+		async for obj in client.iterator_async("/intelligence/search", params={"query": ipaddr}, limit=limit):  # type: ignore
 			print(f"{obj.type}:{obj.id}")
 
