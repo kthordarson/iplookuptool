@@ -26,6 +26,9 @@ async def get_aad_token():
 		raise TokenException('Missing authinfo....')
 	url = f"https://login.microsoftonline.com/{tenantid}/oauth2/token"
 	resourceappiduri = 'https://api-eu.securitycenter.microsoft.com'
+	body = {'resource': resourceappiduri, 'client_id': appid,
+			'client_secret': value, 'grant_type': 'client_credentials'}
+
 	body = {'resource': resourceappiduri, 'client_id': appid, 'client_secret': value, 'grant_type': 'client_credentials'}
 
 	try:
