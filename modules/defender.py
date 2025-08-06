@@ -1,9 +1,5 @@
 import os
-import json
-import urllib.request
-import urllib.parse
-from urllib.error import HTTPError
-import requests
+import aiohttp
 from loguru import logger
 
 class SchemaException(Exception):
@@ -18,7 +14,7 @@ class WrongReasonException(Exception):
 class DefenderException(Exception):
 	pass
 
-def get_aad_token():
+async def get_aad_token():
 	"""
 	returns aadtoken
 	Must set enviorment variables with valid credentials for the registered azure enterprise application
@@ -32,82 +28,122 @@ def get_aad_token():
 	resourceappiduri = 'https://api-eu.securitycenter.microsoft.com'
 	body = {'resource': resourceappiduri, 'client_id': appid,
 			'client_secret': value, 'grant_type': 'client_credentials'}
-	data = urllib.parse.urlencode(body).encode("utf-8")
-	req = urllib.request.Request(url, data)
+
+	body = {'resource': resourceappiduri, 'client_id': appid, 'client_secret': value, 'grant_type': 'client_credentials'}
+
 	try:
-		response = urllib.request.urlopen(req)
-	except HTTPError as e:
+		async with aiohttp.ClientSession() as session:
+			async with session.post(url, data=body) as response:
+				jsonresponse = await response.json()
+				aadtoken = jsonresponse["access_token"]
+				return aadtoken
+	except aiohttp.ClientError as e:
 		logger.error(e)
 		raise TokenException(f'{e} {type(e)} Error getting token appid:{appid} tid:{tenantid} v:{value} ')
 	except Exception as e:
 		logger.error(f'{e} {type(e)} Error getting token appid:{appid} tid:{tenantid} v:{value} ')
 		raise TokenException(f'Error getting token {e} appid:{appid} tid:{tenantid} v:{value} ')
-	jsonresponse = json.loads(response.read())
-	aadtoken = jsonresponse["access_token"]
-	# logger.debug(f'got aadtoken: {len(aadToken)}')
-	return aadtoken
 
 
-def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
+async def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	# query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
-	query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents, DeviceFileEvents, DeviceLogonEvents, DeviceEvents, EmailEvents, IdentityLogonEvents, IdentityQueryEvents, IdentityDirectoryEvents, CloudAppEvents, AADSignInEventsBeta, AADSpnSignInEventsBeta) Timestamp between (ago({maxdays}d) .. now()) and RemoteIP == ip | take {limit} """
-	data = json.dumps({'Query': query}).encode("utf-8")
+	# old_query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents, DeviceFileEvents, DeviceLogonEvents, DeviceEvents, EmailEvents, IdentityLogonEvents, IdentityQueryEvents, IdentityDirectoryEvents, CloudAppEvents, AADSignInEventsBeta, AADSpnSignInEventsBeta, AlertEvidence, UrlClickEvents) Timestamp between (ago({maxdays}d) .. now()) and (RemoteIP == ip or IPAddress == ip) | take {limit} """
+	query = f"""let ip = "{remoteip}";
+	search in (
+	AADSignInEventsBeta,AADSpnSignInEventsBeta,AlertEvidence,BehaviorEntities,
+	CloudAppEvents,CloudAuditEvents,DeviceEvents,DeviceFileEvents,DeviceInfoDeviceLogonEvents,
+	DeviceNetworkEvents,DeviceNetworkInfo,EmailEvents,ExposureGraphNodes,IdentityDirectoryEvents,
+	IdentityLogonEvents,IdentityQueryEvents,
+	UrlClickEventsUrlClickEvents) Timestamp between (ago({maxdays}d) .. now()) and (RemoteIP == ip or IPAddress == ip or RequestSourceIP == ip or FileOriginIP == ip or SenderIPv4 == ip or DestinationIPAddress == ip or PublicIP == ip or LocalIP == ip or NodeProperties.rawData.publicIP == ip) | take {limit} """
+	#
+	data = {'Query': query}
 	# print(f'query = {query}')
 	headers = {
 		'Content-Type': 'application/json',
 		'Accept': 'application/json',
 		'Authorization': "Bearer " + aadtoken
 	}
-	req = urllib.request.Request(url, data, headers)
-	resp = urllib.request.urlopen(req)
-	jresp = json.loads(resp.read())
-	# print(f"results: {len(jresp.get('Results'))}")
-	return jresp
+	async with aiohttp.ClientSession() as session:
+		async with session.post(url, json=data, headers=headers) as response:
+			jresp = await response.json()
+			return jresp
 
-def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
+async def search_account_upn(upn, aadtoken, limit=100, maxdays=3):
+	# upn = "user@domain.com" format, case sensitive
+	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
+	query = f"""let upn = "{upn}";
+	search in (AlertEvidence, BehaviorEntities, BehaviorInfo, AADSignInEventsBeta,
+	IdentityInfo, IdentityLogonEvents, UrlClickEvents, DeviceEvents, DeviceFileEvents,
+	DeviceImageLoadEvents, DeviceLogonEvents, DeviceNetworkEvents, DeviceProcessEvents,
+	DeviceRegistryEvents, CloudAppEvents, EmailAttachmentInfo, EmailEvents,
+	EmailPostDeliveryEvents, CloudAuditEvents, ExposureGraphNodes)
+	Timestamp between (ago({maxdays}d) .. now())
+	and (
+	AccountUpn == upn
+	or InitiatingProcessAccountUpn == upn
+	or tostring(RawEventData.UserId) == upn
+	or SenderFromAddress == upn
+	or RecipientEmailAddress == upn
+	or RawEventData contains upn
+	or NodeProperties.rawData contains upn
+	)"""
+
+	data = {'Query': query}
+	# print(f'query = {query}')
+	headers = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json',
+		'Authorization': "Bearer " + aadtoken
+	}
+	async with aiohttp.ClientSession() as session:
+		async with session.post(url, json=data, headers=headers) as response:
+			jresp = await response.json()
+			return jresp
+
+async def search_remote_url(remoteurl, aadtoken, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
-	data = json.dumps({'Query': query}).encode("utf-8")
+	data = {'Query': query}
 	# print(f'query = {query}')
 	headers = {
 		'Content-Type': 'application/json',
 		'Accept': 'application/json',
 		'Authorization': "Bearer " + aadtoken
 	}
-	req = urllib.request.Request(url, data, headers)
 	try:
-		resp = urllib.request.urlopen(req)
-	except (ConnectionResetError, urllib.error.URLError) as e:
+		async with aiohttp.ClientSession() as session:
+			async with session.post(url, json=data, headers=headers) as response:
+				jresp = await response.json()
+				return jresp
+	except (aiohttp.ClientError, ConnectionResetError) as e:
 		logger.error(f'[search_remote_url] {type(e)} {e} url = {url}')
-		return None
-	jresp = json.loads(resp.read())
-	# print(f"results: {len(jresp.get('Results'))}")
-	return jresp
+		return {}
 
-def search_devicenetworkevents(aadtoken, remoteip, limit=100, maxdays=3):
+async def search_devicenetworkevents(aadtoken, query, limit=100, maxdays=3):
 	url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
 	# query = f'DeviceNetworkEvents | where RemoteUrl contains "{remoteurl}"'
-	query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
-	data = json.dumps({'Query': query}).encode("utf-8")
+	# query = f"""let matchstring = "webengine4";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (InitiatingProcessCommandLine contains matchstring) | take {limit} """
+	# query = f"""let deviceid = "d3e00c5a2830c8c26c5ffe6b2418e14eb8f70bf6";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (DeviceId = matchstring) | take {limit} """
+	# query = f"""let ip = "{remoteip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+	data = {'Query': query}
 	# print(f'query = {query}')
 	headers = {
 		'Content-Type': 'application/json',
 		'Accept': 'application/json',
 		'Authorization': "Bearer " + aadtoken
 	}
-	req = urllib.request.Request(url, data, headers)
 	try:
-		resp = urllib.request.urlopen(req)
-	except HTTPError as e:
+		async with aiohttp.ClientSession() as session:
+			async with session.post(url, json=data, headers=headers) as response:
+				jresp = await response.json()
+				return jresp
+	except aiohttp.ClientError as e:
 		logger.error(f'{type(e)} {e} url = {url}')
 		raise DefenderException(f'{type(e)} {e} url = {url}')
-	jresp = json.loads(resp.read())
-	# print(f"results: {len(jresp.get('Results'))}")
-	return jresp
 
 
-def get_indicators(aadtoken, host=None):
+async def get_indicators(aadtoken, host=None):
 	# todo filter by host
 	"""
 	Get list of indicators from Office365 defender
@@ -115,37 +151,36 @@ def get_indicators(aadtoken, host=None):
 	aadToken: auth token
 	Returns: json object of alerts
 	"""
-	session = requests.Session()
-	session.headers.update(
-		{
-			'Content-Type': 'application/json',
-			'Accept': 'application/json',
-			'Authorization': "Bearer " + aadtoken
-		})
+	headers = {
+		'Content-Type': 'application/json',
+		'Accept': 'application/json',
+		'Authorization': "Bearer " + aadtoken
+	}
 	# baseurl = "https://api-eu.securitycenter.microsoft.com/api/"
 	apiurl = "https://api-eu.securitycenter.microsoft.com/api/Indicators"
 	try:
-		response = session.get(apiurl)
-	except HTTPError as e:
+		async with aiohttp.ClientSession() as session:
+			async with session.get(apiurl, headers=headers) as response:
+				if response.status == 200:
+					json_response = await response.json()
+					try:
+						json_values = json_response['value']
+					except KeyError as e:
+						logger.warning(f'{type(e)} {e} {apiurl} {json_response}')
+						json_values = json_response
+					# logger.info(f'{apiurl} json_values = {len(json_values)} {type(json_values)}')
+					return json_values
+				elif response.status == 403:
+					json_err = await response.json()
+					logger.warning(f"responsecode={response.status} {json_err.get('error').get('code')} {json_err.get('error').get('message')}  apiurl={apiurl}")
+				elif response.status == 404:
+					response_content = await response.text()
+					logger.error(f'notfound responsecode={response.status} response.content={response_content}  apiurl={apiurl}')
+				elif response.status == 400:
+					response_content = await response.text()
+					logger.error(f'responsecode={response.status} response.content={response_content} apiurl={apiurl}')
+				else:
+					logger.error(f'unknown status responsecode={response.status}  apiurl={apiurl}')
+	except aiohttp.ClientError as e:
 		logger.error(f'{type(e)} {e} url = {apiurl}')
-	if response.status_code == 200:
-		json_response = json.loads(response.content)
-		try:
-			json_values = json_response['value']
-		except KeyError as e:
-			logger.warning(f'{type(e)} {e} {apiurl} {json_response}')
-			json_values = json_response
-		# logger.info(f'{apiurl} json_values = {len(json_values)} {type(json_values)}')
-		return json_values
-	elif response.status_code == 403:
-		json_err = json.loads(response.content)
-		logger.warning(f"responsecode={response.status_code} {json_err.get('error').get('code')} {json_err.get('error').get('message')}  apiurl={apiurl}")
-	elif response.status_code == 404:
-		# json_err = json.loads(response.content)
-		logger.error(f'notfound responsecode={response.status_code} response.content={response.content}  apiurl={apiurl}')
-	elif response.status_code == 400:
-		# json_err = json.loads(response.content)
-		logger.error(f'responsecode={response.status_code} response.content={response.content} apiurl={apiurl}')
-	else:
-		logger.error(f'unknown status responsecode={response.status_code}  apiurl={apiurl}')
 
