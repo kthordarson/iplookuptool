@@ -16,7 +16,7 @@ async def get_ipwhois(ipaddr):
 			obj = IPWhois(ipaddr)
 			rdap = obj.lookup_rdap()
 			return f"{rdap['asn_description']};{rdap['network']['name']};{rdap['network']['cidr']};{rdap['network']['start_address']};{rdap['network']['end_address']}"
-		
+
 		# Run the synchronous operation in a thread pool
 		result = await asyncio.to_thread(_sync_lookup)
 		return result

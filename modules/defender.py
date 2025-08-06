@@ -26,9 +26,8 @@ async def get_aad_token():
 		raise TokenException('Missing authinfo....')
 	url = f"https://login.microsoftonline.com/{tenantid}/oauth2/token"
 	resourceappiduri = 'https://api-eu.securitycenter.microsoft.com'
-	body = {'resource': resourceappiduri, 'client_id': appid,
-			'client_secret': value, 'grant_type': 'client_credentials'}
-	
+	body = {'resource': resourceappiduri, 'client_id': appid, 'client_secret': value, 'grant_type': 'client_credentials'}
+
 	try:
 		async with aiohttp.ClientSession() as session:
 			async with session.post(url, data=body) as response:
@@ -54,7 +53,7 @@ async def search_remote_ip(remoteip, aadtoken, limit=100, maxdays=3):
 	DeviceNetworkEvents,DeviceNetworkInfo,EmailEvents,ExposureGraphNodes,IdentityDirectoryEvents,
 	IdentityLogonEvents,IdentityQueryEvents,
 	UrlClickEventsUrlClickEvents) Timestamp between (ago({maxdays}d) .. now()) and (RemoteIP == ip or IPAddress == ip or RequestSourceIP == ip or FileOriginIP == ip or SenderIPv4 == ip or DestinationIPAddress == ip or PublicIP == ip or LocalIP == ip or NodeProperties.rawData.publicIP == ip) | take {limit} """
-	# 
+	#
 	data = {'Query': query}
 	# print(f'query = {query}')
 	headers = {
@@ -74,7 +73,7 @@ async def search_account_upn(upn, aadtoken, limit=100, maxdays=3):
 	search in (AlertEvidence, BehaviorEntities, BehaviorInfo, AADSignInEventsBeta,
 	IdentityInfo, IdentityLogonEvents, UrlClickEvents, DeviceEvents, DeviceFileEvents,
 	DeviceImageLoadEvents, DeviceLogonEvents, DeviceNetworkEvents, DeviceProcessEvents,
-	DeviceRegistryEvents, CloudAppEvents, EmailAttachmentInfo, EmailEvents, 
+	DeviceRegistryEvents, CloudAppEvents, EmailAttachmentInfo, EmailEvents,
 	EmailPostDeliveryEvents, CloudAuditEvents, ExposureGraphNodes)
 	Timestamp between (ago({maxdays}d) .. now())
 	and (

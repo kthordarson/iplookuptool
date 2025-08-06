@@ -17,7 +17,6 @@ async def get_abuseipdb_data(ipaddr, maxdays=30):
         "ipAddress": ipaddr,
         "verbose": "True",
     }
-    
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
