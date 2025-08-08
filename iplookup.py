@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import traceback
 import asyncio
 import pandas as pd
 import os
@@ -14,6 +15,7 @@ from modules.ipwhois import get_ipwhois
 from modules.graylog import graylog_search, graylog_search_ip, print_graylog_summary
 from modules.defender import (get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url)
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
+from modules.ip2loc import get_ip2loc_data
 
 from modules.urlscanio import search_urlscanio
 import urllib3
@@ -28,6 +30,7 @@ def get_args():
 	parser.add_argument("--vturl", help="virustotal url lookup", type=str)
 	parser.add_argument("--ipwhois", help="ipwhois lookup", action="store_true", default=False)
 	parser.add_argument("-vt", "--virustotal", help="virustotal lookup", action="store_true", default=False, dest="virustotal")
+	parser.add_argument("-ip2loc", "--ip2location", help="ip2location lookup", action="store_true", default=False, dest="ip2location")
 	parser.add_argument("--spam", help="spam lookup", action="store_true", default=False)
 	parser.add_argument("-abip", "--abuseipdb", help="abuseipdb lookup", action="store_true", default=False, dest="abuseipdb")
 	parser.add_argument("-us", "--urlscanio", help="urlscanio lookup", action="store_true", default=False, dest="urlscanio")
@@ -54,6 +57,7 @@ async def main(args):
 		args.graylog = True
 		args.azure = True
 		args.urlscanio = True
+		args.ip2location = True
 
 	try:
 		ipaddress = ip_address(args.host).exploded
@@ -61,6 +65,15 @@ async def main(args):
 		logger.warning(f"[!] {e} {type(e)} for address {args.host}")
 		return
 
+	if args.ip2location:
+		# ip2location lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
+		if args.debug:
+			logger.debug(f"ip2location lookup for {args.host} ipaddress: {ipaddress}")
+		ip2locdata = await get_ip2loc_data(ipaddress)
+		if ip2locdata:
+			print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
+		else:
+			logger.warning(f"no ip2location data for {args.host} ipaddress: {ipaddress}")
 	if args.url:
 		# search logs for remoteurl
 		infourl = await get_virustotal_scanurls(args.url)
@@ -266,7 +279,11 @@ async def main(args):
 				defenderdata = await search_devicenetworkevents(token, query)
 				if args.debug:
 					logger.debug(f'defender returned {len(defenderdata.get("Results"))} ... searching azure logs for {addr}')
-				azuredata = await get_azure_signinlogs(addr)
+				try:
+					azuredata = await get_azure_signinlogs(addr)
+				except Exception as e:
+					logger.error(f"azure logs error: {e} {type(e)} for {addr}")
+					azuredata = []
 				if args.debug:
 					logger.debug(f"azure logs returned {len(azuredata)} ... searching azure failed signin logs for {addr}")
 				azuredata_f = await get_azure_signinlogs_failed(addr)
@@ -316,10 +333,17 @@ async def main(args):
 				maxdays = 1
 				limit = 100
 				query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
-
-				defenderdata = await search_devicenetworkevents(token, query)
-				azuredata = await get_azure_signinlogs(addr)
-				azuredata_f = await get_azure_signinlogs_failed(addr)
+				try:
+					defenderdata = await search_devicenetworkevents(token, query)
+					azuredata = await get_azure_signinlogs(addr)
+					azuredata_f = await get_azure_signinlogs_failed(addr)
+				except Exception as e:
+					logger.error(f"error searching defender or azure logs: {e} {type(e)} for {addr}")
+					if args.debug:
+						logger.error(traceback.format_exc())
+					defenderdata = {"Results": []}
+					azuredata = []
+					azuredata_f = []
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
 				glres = await graylog_search_ip(ip_address=addr, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
@@ -346,7 +370,13 @@ async def main(args):
 						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
 
 	if args.azure:
-		azuredata = await get_azure_signinlogs(args.host)
+		try:
+			azuredata = await get_azure_signinlogs(args.host)
+		except Exception as e:
+			logger.error(f"azure logs error: {e} {type(e)} for {args.host}")
+			azuredata = []
+			if args.debug:
+				logger.error(traceback.format_exc())
 		if args.debug:
 			logger.debug(f"azure signinlogs: {len(azuredata)}")
 		if len(azuredata) >= 1:
@@ -408,6 +438,7 @@ if __name__ == "__main__":
 		logger.error(f"mainerror: {e} {type(e)}")
 	except ValueError as e:
 		logger.error(f"mainerror: {e} {type(e)}")
+		logger.error(traceback.format_exc())
 	except TypeError as e:
 		logger.error(f"mainerror: {e} {type(e)}")
 	# except Exception as e:
