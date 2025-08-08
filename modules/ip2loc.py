@@ -30,20 +30,3 @@ async def get_ip2loc_data(ipaddr):
 	except Exception as e:
 		logger.error(f"ip2loc exception: {e} {type(e)} for {ipaddr}")
 		return None
-
-# Example testdata for reference
-testdata = {
-	"ip": "8.8.8.8",
-	"country_code": "US",
-	"country_name": "United States of America",
-	"region_name": "California",
-	"city_name": "Mountain View",
-	"latitude": 37.38605,
-	"longitude": -122.08385,
-	"zip_code": "94035",
-	"time_zone": "-07:00",
-	"asn": "15169",
-	"as": "Google LLC",
-	"is_proxy": False,
-	"message": "Limit to 500 queries per day. Sign up for a Free plan at https://www.ip2location.io to get 30K queries per month."
-}

@@ -16,6 +16,7 @@ from modules.graylog import graylog_search, graylog_search_ip, print_graylog_sum
 from modules.defender import (get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url)
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 from modules.ip2loc import get_ip2loc_data
+from modules.ipinfoio import get_ipinfo
 
 from modules.urlscanio import search_urlscanio
 import urllib3
@@ -31,6 +32,7 @@ def get_args():
 	parser.add_argument("--ipwhois", help="ipwhois lookup", action="store_true", default=False)
 	parser.add_argument("-vt", "--virustotal", help="virustotal lookup", action="store_true", default=False, dest="virustotal")
 	parser.add_argument("-ip2loc", "--ip2location", help="ip2location lookup", action="store_true", default=False, dest="ip2location")
+	parser.add_argument("-ipinfo", "--ipinfo", help="ipinfo.io lookup", action="store_true", default=False, dest="ipinfoio")
 	parser.add_argument("--spam", help="spam lookup", action="store_true", default=False)
 	parser.add_argument("-abip", "--abuseipdb", help="abuseipdb lookup", action="store_true", default=False, dest="abuseipdb")
 	parser.add_argument("-us", "--urlscanio", help="urlscanio lookup", action="store_true", default=False, dest="urlscanio")
@@ -58,12 +60,23 @@ async def main(args):
 		args.azure = True
 		args.urlscanio = True
 		args.ip2location = True
+		args.ipinfoio = True
 
 	try:
 		ipaddress = ip_address(args.host).exploded
 	except ValueError as e:
 		logger.warning(f"[!] {e} {type(e)} for address {args.host}")
 		return
+
+	if args.ipinfoio:
+		# ipinfo.io lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
+		if args.debug:
+			logger.debug(f"ipinfo.io lookup for {args.host} ipaddress: {ipaddress}")
+		ipinfodata = await get_ipinfo(ipaddress)
+		if ipinfodata:
+			print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
+		else:
+			logger.warning(f"no ipinfo.io data for {args.host} ipaddress: {ipaddress}")
 
 	if args.ip2location:
 		# ip2location lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
