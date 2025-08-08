@@ -64,6 +64,12 @@ async def graylog_search_ip(ip_address, range=86400):
 
 	query = {'query': {'multi_match': {'query': ip_address,'fields': IPFIELDS}}}
 	res = None
+	if not os.environ.get('OPENSEARCHOST'):
+		logger.error('OPENSEARCHOST environment variable not set')
+		return res
+	if not os.environ.get('OPENSEARCHAUTHPASS'):
+		logger.error('OPENSEARCHAUTHPASS environment variable not set')
+		return res
 	async with AsyncOpenSearch([os.environ.get('OPENSEARCHOST')], http_auth=(os.environ.get('OPENSEARCHAUTHPASS'), os.environ.get('OPENSEARCHAUTHPASS')), use_ssl=True, verify_certs=False, ssl_show_warn=False) as client:
 		# q='RemoteMGNT'
 		# range=(86400)
@@ -86,6 +92,13 @@ async def graylog_search(query, range=86400):
 	# query = {'size': 5,'query': {'multi': {'query': query}}}  # ,'fields': ['srcip', 'dstip']}}}
 	# urlquery = {'query': {'multi_match': {'query': url,'fields': ['url', 'request_path']}}}
 	query = {'query': {'multi_match': {'query': query,'fields': ['url', 'request_path']}}}
+	res = {}
+	if not os.environ.get('OPENSEARCHOST'):
+		logger.error('OPENSEARCHOST environment variable not set')
+		return res
+	if not os.environ.get('OPENSEARCHAUTHPASS'):
+		logger.error('OPENSEARCHAUTHPASS environment variable not set')
+		return res
 	async with AsyncOpenSearch([os.environ.get('OPENSEARCHOST')], http_auth=(os.environ.get('OPENSEARCHAUTHPASS'), os.environ.get('OPENSEARCHAUTHPASS')), use_ssl=True, verify_certs=False, ssl_show_warn=False) as client:
 		# q='RemoteMGNT'
 		# range=(86400)
@@ -106,6 +119,12 @@ async def graylog_freetext_search(search_text, range=86400):
 
 	# searches all fields
 	# query = {"query": {"match": {"_all": search_text}}}
+	if not os.environ.get('OPENSEARCHOST'):
+		logger.error('OPENSEARCHOST environment variable not set')
+		return {}
+	if not os.environ.get('OPENSEARCHAUTHPASS'):
+		logger.error('OPENSEARCHAUTHPASS environment variable not set')
+		return {}
 
 	async with AsyncOpenSearch([os.environ.get('OPENSEARCHOST')], http_auth=(os.environ.get('OPENSEARCHAUTHPASS'), os.environ.get('OPENSEARCHAUTHPASS')), use_ssl=True, verify_certs=False, ssl_show_warn=False) as client:
 		try:

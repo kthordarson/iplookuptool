@@ -1,3 +1,4 @@
+import traceback
 from azure.identity.aio import DefaultAzureCredential
 from azure.monitor.query.aio import LogsQueryClient
 from azure.monitor.query import LogsQueryStatus
@@ -7,12 +8,14 @@ from datetime import timedelta
 from loguru import logger
 
 
-async def get_azure_signinlogs(ipaddress, resulttype=0):
+async def get_azure_signinlogs(args, resulttype=0):
+    if not os.getenv('AZURE_LOGRESOURCE_ID'):
+        logger.error('AZURE_LOGRESOURCE_ID environment variable not set')
+        return []
     try:
         async with DefaultAzureCredential() as creds:
             async with LogsQueryClient(creds) as logclient:
-                # query = f'SigninLogs | where IPAddress == "{ipaddress}" | where ResultType == "{resulttype}" | take 100'
-                query = f'SigninLogs | where IPAddress == "{ipaddress}" | take 100'
+                query = f'SigninLogs | where IPAddress == "{args.ipaddress}" | take 100'
                 logs_resource_id = os.getenv('AZURE_LOGRESOURCE_ID')
                 response = await logclient.query_resource(logs_resource_id, query, timespan=timedelta(days=1))
                 if response.status == LogsQueryStatus.PARTIAL:
@@ -32,10 +35,15 @@ async def get_azure_signinlogs(ipaddress, resulttype=0):
                     logger.error(f'Unexpected response status: {response.status}')
                     return []
     except Exception as e:
-        logger.error(f"azure logs exception: {e} {type(e)} for {ipaddress}")
+        logger.error(f"azure logs exception: {e} {type(e)} for {args.ipaddress}")
+        if args.debug:
+            logger.error(traceback.format_exc())
         return []
 
 async def get_azure_signinlogs_failed(ipaddress):
+    if not os.getenv('AZURE_LOGRESOURCE_ID'):
+        logger.error('AZURE_LOGRESOURCE_ID environment variable not set')
+        return []
     async with DefaultAzureCredential() as creds:
         async with LogsQueryClient(creds) as logclient:
             query = f'SigninLogs | where IPAddress == "{ipaddress}" | where ResultType != "0" | take 100'

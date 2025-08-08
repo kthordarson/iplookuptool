@@ -26,7 +26,7 @@ urllib3.disable_warnings()
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
-	parser.add_argument("--host", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
+	parser.add_argument("-ip", "--host", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
 	parser.add_argument("--url", help="url to lookup", type=str, metavar="url")
 	parser.add_argument("--vturl", help="virustotal url lookup", type=str)
 	parser.add_argument("--ipwhois", help="ipwhois lookup", action="store_true", default=False)
@@ -63,7 +63,7 @@ async def main(args):
 		args.ipinfoio = True
 
 	try:
-		ipaddress = ip_address(args.host).exploded
+		args.ipaddress = ip_address(args.host).exploded
 	except ValueError as e:
 		logger.warning(f"[!] {e} {type(e)} for address {args.host}")
 		return
@@ -71,22 +71,22 @@ async def main(args):
 	if args.ipinfoio:
 		# ipinfo.io lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		if args.debug:
-			logger.debug(f"ipinfo.io lookup for {args.host} ipaddress: {ipaddress}")
-		ipinfodata = await get_ipinfo(ipaddress)
+			logger.debug(f"ipinfo.io lookup for {args.host} ipaddress: {args.ipaddress}")
+		ipinfodata = await get_ipinfo(args)
 		if ipinfodata:
 			print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
 		else:
-			logger.warning(f"no ipinfo.io data for {args.host} ipaddress: {ipaddress}")
+			logger.warning(f"no ipinfo.io data for {args.host} ipaddress: {args.ipaddress}")
 
 	if args.ip2location:
 		# ip2location lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		if args.debug:
-			logger.debug(f"ip2location lookup for {args.host} ipaddress: {ipaddress}")
-		ip2locdata = await get_ip2loc_data(ipaddress)
+			logger.debug(f"ip2location lookup for {args.host} ipaddress: {args.ipaddress}")
+		ip2locdata = await get_ip2loc_data(args.ipaddress)
 		if ip2locdata:
 			print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
 		else:
-			logger.warning(f"no ip2location data for {args.host} ipaddress: {ipaddress}")
+			logger.warning(f"no ip2location data for {args.host} ipaddress: {args.ipaddress}")
 	if args.url:
 		# search logs for remoteurl
 		infourl = await get_virustotal_scanurls(args.url)
@@ -132,7 +132,7 @@ async def main(args):
 			if vt_url_resultdata.get(vendor).get("category") == "malicious":
 				print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
 
-	if args.ipwhois and ipaddress:
+	if args.ipwhois and args.ipaddress:
 		# ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		ipaddress = ip_address(args.host)
 		if ipaddress.is_global:
@@ -176,6 +176,11 @@ async def main(args):
 			results = await graylog_search_ip(args.host, range=86400)
 		except ApiException as e:
 			logger.warning(f"graylog search error: {e}")
+			results = None
+		except TypeError as e:
+			logger.error(f"graylog search error: {e} {type(e)}")
+			if args.debug:
+				logger.error(traceback.format_exc())
 			results = None
 		except Exception as e:
 			logger.error(f"graylog search error: {e} {type(e)}")
@@ -293,7 +298,7 @@ async def main(args):
 				if args.debug:
 					logger.debug(f'defender returned {len(defenderdata.get("Results"))} ... searching azure logs for {addr}')
 				try:
-					azuredata = await get_azure_signinlogs(addr)
+					azuredata = await get_azure_signinlogs(args)
 				except Exception as e:
 					logger.error(f"azure logs error: {e} {type(e)} for {addr}")
 					azuredata = []
@@ -348,7 +353,7 @@ async def main(args):
 				query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
 				try:
 					defenderdata = await search_devicenetworkevents(token, query)
-					azuredata = await get_azure_signinlogs(addr)
+					azuredata = await get_azure_signinlogs(args)
 					azuredata_f = await get_azure_signinlogs_failed(addr)
 				except Exception as e:
 					logger.error(f"error searching defender or azure logs: {e} {type(e)} for {addr}")
@@ -384,7 +389,7 @@ async def main(args):
 
 	if args.azure:
 		try:
-			azuredata = await get_azure_signinlogs(args.host)
+			azuredata = await get_azure_signinlogs(args)
 		except Exception as e:
 			logger.error(f"azure logs error: {e} {type(e)} for {args.host}")
 			azuredata = []
