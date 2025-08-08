@@ -14,8 +14,8 @@ except ImportError as e:
 	logger.error(f'missing virustotal package {e} {type(e)}')
 	os._exit(-1)
 
-async def get_virustotal_info(ipaddr):
-	url = f"https://www.virustotal.com/api/v3/ip_addresses/{ipaddr}"
+async def get_virustotal_info(args):
+	url = f"https://www.virustotal.com/api/v3/ip_addresses/{args.ipaddress}"
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY}
 	try:
 		async with aiohttp.ClientSession() as session:
@@ -23,7 +23,7 @@ async def get_virustotal_info(ipaddr):
 				jsonresults = await response.json()
 				return jsonresults['data']['attributes']
 	except Exception as e:
-		logger.error(f'[!] {e} {type(e)} addr: {ipaddr}')
+		logger.error(f'[!] {e} {type(e)} addr: {args.ipaddress}')
 		return None
 
 async def get_virustotal_comments(ipaddr, limit=10):

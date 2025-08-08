@@ -40,13 +40,13 @@ async def get_azure_signinlogs(args, resulttype=0):
             logger.error(traceback.format_exc())
         return []
 
-async def get_azure_signinlogs_failed(ipaddress):
+async def get_azure_signinlogs_failed(args):
     if not os.getenv('AZURE_LOGRESOURCE_ID'):
         logger.error('AZURE_LOGRESOURCE_ID environment variable not set')
         return []
     async with DefaultAzureCredential() as creds:
         async with LogsQueryClient(creds) as logclient:
-            query = f'SigninLogs | where IPAddress == "{ipaddress}" | where ResultType != "0" | take 100'
+            query = f'SigninLogs | where IPAddress == "{args.ipaddress}" | where ResultType != "0" | take 100'
             logs_resource_id = os.getenv('AZURE_LOGRESOURCE_ID')
             response = await logclient.query_resource(logs_resource_id, query, timespan=timedelta(days=1))
             if response.status == LogsQueryStatus.PARTIAL:

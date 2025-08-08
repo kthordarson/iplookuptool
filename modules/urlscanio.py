@@ -7,7 +7,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.SSLError)
 
-async def get_urlscanio_data(ipaddr):
+async def xxxget_urlscanio_data(args):
 	# https://urlscan.io/docs/api/
 	pass
 

@@ -82,7 +82,7 @@ async def main(args):
 		# ip2location lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		if args.debug:
 			logger.debug(f"ip2location lookup for {args.host} ipaddress: {args.ipaddress}")
-		ip2locdata = await get_ip2loc_data(args.ipaddress)
+		ip2locdata = await get_ip2loc_data(args)
 		if ip2locdata:
 			print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
 		else:
@@ -97,7 +97,9 @@ async def main(args):
 			token = await get_aad_token()
 			defenderdata = await search_remote_url(args.url, token, limit=100, maxdays=3)
 		except (DefenderException, TokenException) as e:
-			logger.error(e)
+			logger.error(f'[!] Error getting defender data: {e} {type(e)} for url {args.url}')
+			if args.debug:
+				logger.error(traceback.format_exc())
 			os._exit(-1)
 		finally:
 			print(f"{Fore.LIGHTBLUE_EX}vt url info  {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
@@ -136,7 +138,7 @@ async def main(args):
 		# ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		ipaddress = ip_address(args.host)
 		if ipaddress.is_global:
-			whois_info = await get_ipwhois(args.host)
+			whois_info = await get_ipwhois(args)
 			print(f"{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}")
 		elif ipaddress.is_private:
 			print(f"{Fore.YELLOW}private address: {ipaddress}")
@@ -286,7 +288,11 @@ async def main(args):
 			print(f"{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}")
 			for res in results.get("hits").get("hits")[: args.maxoutput]:
 				print(f"{Fore.YELLOW}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('user')} {res_msg.get('remip')} {res_msg.get('source')}")
-			token = await get_aad_token()
+			try:
+				token = await get_aad_token()
+			except TokenException as e:
+				logger.error(f"TokenException: {e} {type(e)}")
+				return
 			for addr in ipaddres_set:
 				print(f"{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}")
 				if args.debug:
@@ -304,7 +310,7 @@ async def main(args):
 					azuredata = []
 				if args.debug:
 					logger.debug(f"azure logs returned {len(azuredata)} ... searching azure failed signin logs for {addr}")
-				azuredata_f = await get_azure_signinlogs_failed(addr)
+				azuredata_f = await get_azure_signinlogs_failed(args)
 				if args.debug:
 					logger.debug(f"azure failed signin logs returned {len(azuredata_f)} ... searching graylog for {addr}")
 				glres = await graylog_search_ip(addr, range=86400)
@@ -342,7 +348,11 @@ async def main(args):
 		if results:
 			ipaddres_set = set([k.get("message").get("dstip") for k in results.get("hits").get("hits")])
 			print(f"{Fore.LIGHTBLUE_EX}[2] graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}")
-			token = await get_aad_token()
+			try:
+				token = await get_aad_token()
+			except TokenException as e:
+				logger.error(f"TokenException: {e} {type(e)}")
+				return
 			indicators = await get_indicators(token, args.host)
 			for addr in ipaddres_set:
 				print(f"{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}")
@@ -354,7 +364,7 @@ async def main(args):
 				try:
 					defenderdata = await search_devicenetworkevents(token, query)
 					azuredata = await get_azure_signinlogs(args)
-					azuredata_f = await get_azure_signinlogs_failed(addr)
+					azuredata_f = await get_azure_signinlogs_failed(args)
 				except Exception as e:
 					logger.error(f"error searching defender or azure logs: {e} {type(e)} for {addr}")
 					if args.debug:
@@ -412,9 +422,14 @@ async def main(args):
 	if args.defender:
 		try:
 			token = await get_aad_token()
+		except TokenException as e:
+			logger.warning(f'TokenException: {e} {type(e)}')
+			token = None
 		except Exception as e:
-			logger.error(e)
-			os._exit(-1)
+			logger.error(f'error getting aad token: {e} {type(e)}')
+			if args.debug:
+				logger.error(traceback.format_exc())
+			token = None
 		if token:
 			try:
 				indicators = await get_indicators(token, args.host)
