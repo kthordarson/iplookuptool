@@ -154,8 +154,8 @@ async def main(args):
 			total_votes = vtinfo.get("total_votes", {})
 			as_owner = {}
 			total_votes = {}
-			suspicious = last_analysis_stats.get('suspicious')
-			malicious = last_analysis_stats.get('malicious')
+			suspicious = last_analysis_stats.get('suspicious')  # type: ignore
+			malicious = last_analysis_stats.get('malicious')  # type: ignore
 			malicious += int(total_votes.get("malicious", 0))
 			if malicious+suspicious > 0:
 				vtforecolor = Fore.RED
@@ -284,9 +284,9 @@ async def main(args):
 			logger.error(f"graylog search error: {e} {type(e)}")
 			results = None
 		if results:
-			ipaddres_set = set([k.get("message").get("remip") for k in results.get("hits").get("hits")])
-			print(f"{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}")
-			for res in results.get("hits").get("hits")[: args.maxoutput]:
+			ipaddres_set = set([k.get("message").get("remip") for k in results.get("hits").get("hits")])  # type: ignore
+			print(f"{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}")  # type: ignore
+			for res in results.get("hits").get("hits")[: args.maxoutput]:  # type: ignore
 				print(f"{Fore.YELLOW}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('user')} {res_msg.get('remip')} {res_msg.get('source')}")
 			try:
 				token = await get_aad_token()
@@ -346,8 +346,8 @@ async def main(args):
 			logger.error(f"graylog search error: {e} {type(e)}")
 			results = None
 		if results:
-			ipaddres_set = set([k.get("message").get("dstip") for k in results.get("hits").get("hits")])
-			print(f"{Fore.LIGHTBLUE_EX}[2] graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}")
+			ipaddres_set = set([k.get("message").get("dstip") for k in results.get("hits").get("hits")])  # type: ignore
+			print(f"{Fore.LIGHTBLUE_EX}[2] graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}")  # type: ignore
 			try:
 				token = await get_aad_token()
 			except TokenException as e:
@@ -379,10 +379,10 @@ async def main(args):
 					print(f"{Fore.LIGHTBLUE_EX}[3] graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}")  # type: ignore
 					for res in glres.get("hits").get("hits")[: args.maxoutput]:  # type: ignore
 						print(f"{Fore.CYAN}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('srcip')} {res_msg.get('dstip')} {res_msg.get('url')}")  # type: ignore
-				if len(defenderdata.get("Results")) > 0:
-					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW} {len(defenderdata.get("Results"))} {Fore.LIGHTBLUE_EX}for{Fore.CYAN} {addr}')
+				if len(defenderdata.get("Results")) > 0:  # type: ignore
+					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW} {len(defenderdata.get("Results"))} {Fore.LIGHTBLUE_EX}for{Fore.CYAN} {addr}')  # type: ignore
 					results = defenderdata.get("Results")
-					for res in results[: args.maxoutput]:
+					for res in results[: args.maxoutput]:  # type: ignore
 						print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
 				if len(azuredata) > 0:
 					print(f"{Fore.LIGHTBLUE_EX} azure found {Fore.YELLOW} {len(azuredata)}")

@@ -385,8 +385,7 @@ def print_graylog_summary(search_results):
 	summary = summarize_graylog_results(search_results)
 	try:
 		print(f"\n{Fore.LIGHTBLUE_EX}=== Graylog Search Results Summary ==={Style.RESET_ALL}")
-		print(f"{Fore.CYAN}Total Results: {Fore.YELLOW}{summary['total_results']}")
-		print(f"{Fore.CYAN}Analyzed: {Fore.YELLOW}{summary['results_analyzed']}")
+		print(f"{Fore.CYAN}Total Results: {Fore.YELLOW}{summary['total_results']} {Fore.CYAN}Analyzed: {Fore.YELLOW}{summary['results_analyzed']}")
 	except KeyError as e:
 		logger.error(f'Error printing graylog summary: {e} summary={summary}')
 		print(f"{Fore.RED}Error: Invalid search results format{Style.RESET_ALL}")
