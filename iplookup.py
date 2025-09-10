@@ -40,16 +40,32 @@ def get_args():
 	parser.add_argument("--skip_ip2location", help="skip ip2location lookup", action="store_true", default=False, dest="skip_ip2location")
 
 	parser.add_argument("-ipinfo", "--ipinfo", help="ipinfo.io lookup", action="store_true", default=False, dest="ipinfoio")
+	parser.add_argument("--skip_ipinfo", help="skip ipinfo.io lookup", action="store_true", default=False, dest="skip_ipinfo")
+
 	parser.add_argument("--spam", help="spam lookup", action="store_true", default=False)
+	parser.add_argument("--skip_spam", help="skip spam lookup", action="store_true", default=False, dest="skip_spam")
+
 	parser.add_argument("-abip", "--abuseipdb", help="abuseipdb lookup", action="store_true", default=False, dest="abuseipdb")
+	parser.add_argument("--skip_abuseipdb", help="skip abuseipdb lookup", action="store_true", default=False, dest="skip_abuseipdb")
+
 	parser.add_argument("--crowdsec", help="crowdsec lookup", action="store_true", default=False, dest="crowdsec")
 	parser.add_argument("--skip_crowdsec", help="skip crowdsec lookup", action="store_true", default=False, dest="skip_crowdsec")
+
 	parser.add_argument("-us", "--urlscanio", help="urlscanio lookup", action="store_true", default=False, dest="urlscanio")
+	parser.add_argument("--skip_urlscanio", help="skip urlscanio lookup", action="store_true", default=False, dest="skip_urlscanio")
+
 	parser.add_argument("--graylog", help="search in graylog", action="store_true", default=False, dest="graylog")
+	parser.add_argument("--skip_graylog", help="skip graylog search", action="store_true", default=False, dest="skip_graylog")
+
 	parser.add_argument("--ftgd_blk", help="get ftgd_blk from graylog", action="store_true", default=False, dest="ftgd_blk")
+
 	parser.add_argument("--sslvpnloginfail", help="get sslvpnloginfail from graylog", action="store_true", default=False, dest="sslvpnloginfail")
+
 	parser.add_argument("-def", "--defender", help="search in defender", action="store_true", default=False, dest="defender")
+	parser.add_argument("--skip_defender", help="skip defender search", action="store_true", default=False, dest="skip_defender")
+
 	parser.add_argument("-az", "--azure", help="search azurelogs", action="store_true", default=False, dest="azure")
+	parser.add_argument("--skip_azure", help="skip azurelogs search", action="store_true", default=False, dest="skip_azure")
 
 	parser.add_argument("--maxoutput", help="limit output", default=10, type=int)
 	parser.add_argument("--all", help="use all lookups", action="store_true", default=False)
@@ -71,6 +87,21 @@ async def main(args):
 		args.urlscanio = True
 		args.ip2location = True
 		args.ipinfoio = True
+		
+	if args.skip_urlscanio:
+		args.urlscanio = False
+	if args.skip_ipinfo:
+		args.ipinfoio = False
+	if args.skip_spam:
+		args.spam = False
+	if args.skip_abuseipdb:
+		args.abuseipdb = False
+	if args.skip_azure:
+		args.azure = False
+	if args.skip_defender:
+		args.defender = False
+	if args.skip_graylog:
+		args.graylog = False
 	if args.skip_virustotal:
 		args.virustotal = False
 	if args.skip_ipwhois:
