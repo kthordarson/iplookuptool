@@ -17,8 +17,8 @@ from modules.defender import (get_aad_token, search_devicenetworkevents, get_ind
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 from modules.ip2loc import get_ip2loc_data
 from modules.ipinfoio import get_ipinfo
-
 from modules.urlscanio import search_urlscanio
+from modules.crowdsec import get_crowdsec_data
 import urllib3
 
 urllib3.disable_warnings()
@@ -29,12 +29,21 @@ def get_args():
 	parser.add_argument("-ip", "--host", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
 	parser.add_argument("--url", help="url to lookup", type=str, metavar="url")
 	parser.add_argument("--vturl", help="virustotal url lookup", type=str)
+
 	parser.add_argument("--ipwhois", help="ipwhois lookup", action="store_true", default=False)
+	parser.add_argument("--skip_ipwhois", help="skip ipwhois lookup", action="store_true", default=False, dest="skip_ipwhois")
+
 	parser.add_argument("-vt", "--virustotal", help="virustotal lookup", action="store_true", default=False, dest="virustotal")
+	parser.add_argument("--skip_virustotal", help="skip virustotal lookup", action="store_true", default=False, dest="skip_virustotal")
+
 	parser.add_argument("-ip2loc", "--ip2location", help="ip2location lookup", action="store_true", default=False, dest="ip2location")
+	parser.add_argument("--skip_ip2location", help="skip ip2location lookup", action="store_true", default=False, dest="skip_ip2location")
+
 	parser.add_argument("-ipinfo", "--ipinfo", help="ipinfo.io lookup", action="store_true", default=False, dest="ipinfoio")
 	parser.add_argument("--spam", help="spam lookup", action="store_true", default=False)
 	parser.add_argument("-abip", "--abuseipdb", help="abuseipdb lookup", action="store_true", default=False, dest="abuseipdb")
+	parser.add_argument("--crowdsec", help="crowdsec lookup", action="store_true", default=False, dest="crowdsec")
+	parser.add_argument("--skip_crowdsec", help="skip crowdsec lookup", action="store_true", default=False, dest="skip_crowdsec")
 	parser.add_argument("-us", "--urlscanio", help="urlscanio lookup", action="store_true", default=False, dest="urlscanio")
 	parser.add_argument("--graylog", help="search in graylog", action="store_true", default=False, dest="graylog")
 	parser.add_argument("--ftgd_blk", help="get ftgd_blk from graylog", action="store_true", default=False, dest="ftgd_blk")
@@ -51,6 +60,7 @@ def get_args():
 
 async def main(args):
 	if args.all:
+		args.crowdsec = True
 		args.ipwhois = True
 		args.virustotal = True
 		args.abuseipdb = True
@@ -61,7 +71,14 @@ async def main(args):
 		args.urlscanio = True
 		args.ip2location = True
 		args.ipinfoio = True
-
+	if args.skip_virustotal:
+		args.virustotal = False
+	if args.skip_ipwhois:
+		args.ipwhois = False
+	if args.skip_crowdsec:
+		args.crowdsec = False
+	if args.skip_ip2location:
+		args.ip2location = False
 	try:
 		args.ipaddress = ip_address(args.host).exploded
 	except ValueError as e:
@@ -170,6 +187,11 @@ async def main(args):
 		abuseipdbdata = await get_abuseipdb_data(args.host)
 		if abuseipdbdata:
 			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+
+	if args.crowdsec:
+		crowdsecdata = await get_crowdsec_data(args)
+		if crowdsecdata:
+			print(f'{Fore.LIGHTBLUE_EX}crowdsec Reports:{Fore.CYAN} {crowdsecdata.get("reputation")} confidence: {crowdsecdata.get("confidence")}')
 
 	if args.graylog:
 		try:
