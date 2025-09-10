@@ -87,7 +87,7 @@ async def main(args):
 		args.urlscanio = True
 		args.ip2location = True
 		args.ipinfoio = True
-		
+
 	if args.skip_urlscanio:
 		args.urlscanio = False
 	if args.skip_ipinfo:
@@ -150,23 +150,23 @@ async def main(args):
 				logger.error(traceback.format_exc())
 			os._exit(-1)
 		finally:
-			print(f"{Fore.LIGHTBLUE_EX}vt url info  {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
+			print(f"{Fore.LIGHTBLUE_EX}vt url info {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
 			for vendor in vt_url_resultdata:
 				if vt_url_resultdata.get(vendor).get("category") == "malicious":
-					print(f"{Fore.CYAN}   Vendor: {vendor} result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
+					print(f"{Fore.CYAN} Vendor: {vendor} result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
 			print(f"{Fore.LIGHTBLUE_EX}defender data:{Fore.YELLOW} {len(defenderdata.get("Results", []))} {Style.RESET_ALL}")
 			if len(defenderdata.get("Results", [])) >= 1:
 				results = defenderdata.get("Results", [])
 				for res in results[: args.maxoutput]:
-					print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+					print(f"{Fore.CYAN} {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 
 	if args.urlscanio:
 		try:
 			urlscandata = await search_urlscanio(args.host)
 			if urlscandata:
 				print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
-				for res in urlscandata.get("results"):
-					print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
+				# for res in urlscandata.get("results"):
+				# 	print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
 			else:
 				logger.warning(f"no urlscanio data for {args.host} urlscandata: {urlscandata}")
 		except Exception as e:
@@ -177,10 +177,10 @@ async def main(args):
 		print(f"{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}")
 		vturlinfo = await get_virustotal_urlinfo(infourl)
 		vt_url_resultdata = vturlinfo.get("data").get("attributes").get("results")
-		print(f"{Fore.BLUE}vt url info:  {Fore.GREEN}{len(vt_url_resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
+		print(f"{Fore.BLUE}vt url info: {Fore.GREEN}{len(vt_url_resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
 		for vendor in vt_url_resultdata:
 			if vt_url_resultdata.get(vendor).get("category") == "malicious":
-				print(f"{Fore.BLUE}   Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
+				print(f"{Fore.BLUE}Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
 
 	if args.ipwhois and args.ipaddress:
 		# ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
@@ -209,7 +209,7 @@ async def main(args):
 				vtforecolor = Fore.RED
 			else:
 				vtforecolor = Fore.GREEN
-			print(f"{Fore.LIGHTBLUE_EX}vt\t{args.host} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}  ")
+			print(f"{Fore.LIGHTBLUE_EX}vt\t{args.host} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
 			for vendor in last_analysis_results:  # type: ignore
 				if last_analysis_results.get(vendor).get("category") in ('suspicious', "malicious"):  # type: ignore
 					print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result: {last_analysis_results.get(vendor).get('result')} {last_analysis_results.get(vendor).get('method')} ")  # type: ignore
@@ -291,9 +291,15 @@ async def main(args):
 					res_idx = res.get("_index")
 					res_msg = res.get("_source")
 					if "msgraph" in res_idx:
-						print(f"{Fore.YELLOW} {res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('RequestMethod')} {res_msg.get('displayName')} {res_msg.get('IpAddress')} {res_msg.get('dstip')} {res_msg.get('RequestUri')}")
+						print(f"{Fore.YELLOW}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('RequestMethod')} {res_msg.get('displayName')} {res_msg.get('IpAddress')} {res_msg.get('dstip')} {res_msg.get('RequestUri')}")
+					if 'citrix' in res_idx:
+						if res_msg.get('blacklisted'):
+							blk_text = f'{Fore.RED} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
+						else:
+							blk_text = f'{Fore.GREEN} blacklisted {res_msg.get("blacklisted")} '
+						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} ")
 					else:
-						print(f"{Fore.YELLOW}{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} country:{res_msg.get('srccountry')} - {res_msg.get('dstcountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
+						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} citrixtype:{res_msg.get('citrixtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
 				if "msg" in df.columns and "srcip" in df.columns:
 					print(f"{Fore.LIGHTBLUE_EX}top 15 actions by srcip:")
