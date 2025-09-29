@@ -270,7 +270,7 @@ def summarize_graylog_results(search_results):
 			actions[source['action']] += 1
 
 		# Source IPs
-		for ip_field in ['srcip', 'Remote_ip', 'ClientIP', 'source','SourceAddress','VserverAddress','NatIPaddress', 'transip']:
+		for ip_field in ['srcip', 'Remote_ip', 'ClientIP', 'source','SourceAddress','VserverAddress','NatIPaddress', 'transip', 'client_ipaddress']:
 			if ip_field in source and source[ip_field]:
 				try:
 					# Only process if it's a string (IP address)
