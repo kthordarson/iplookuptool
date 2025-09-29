@@ -25,6 +25,7 @@ IPFIELDS = [
 	'DestinationAddress',
 	'VserverAddress',
 	'ipAddress',
+	'client_ipaddress',
 	'InitiatedByUserIpAddress'
 ]
 
