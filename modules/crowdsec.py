@@ -28,7 +28,8 @@ async def get_crowdsec_data(args):
 							return None
 					elif response.status == 404:
 						if args.debug:
-							logger.warning(f"[!] not found {args.host}")
+							text = await response.text()
+							logger.warning(f"[!] not found {args.host} {text}")  # type: ignore
 						return None
 					else:
 						logger.warning(f"[!] {response.status} {response.reason} for {args.host}")

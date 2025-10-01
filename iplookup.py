@@ -300,7 +300,6 @@ async def main(args):
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} ")
 					else:
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} citrixtype:{res_msg.get('citrixtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
-					# print(f"   {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} srccountry:{res_msg.get('srccountry')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} service: {res_msg.get('service')} url:{res_msg.get('url')}")
 				if "msg" in df.columns and "srcip" in df.columns:
 					print(f"{Fore.LIGHTBLUE_EX}top 15 actions by srcip:")
 					try:
@@ -472,7 +471,7 @@ async def main(args):
 				for logentry in azuredata[: args.maxoutput]:
 					timest = logentry.get("TimeGenerated")
 					status = json.loads(logentry.get("Status"))  # type: ignore
-					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
+					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')} riskdetail: {logentry.get('RiskDetail')} resourcedisplayname: {logentry.get('ResourceDisplayName')} authenticationrequirement: {logentry.get('AuthenticationRequirement')}")  # type: ignore
 			else:
 				print(
 					f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}"
