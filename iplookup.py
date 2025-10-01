@@ -290,9 +290,11 @@ async def main(args):
 				for res in results.get("hits").get("hits")[: args.maxoutput]:
 					res_idx = res.get("_index")
 					res_msg = res.get("_source")
-					if "msgraph" in res_idx:
+					if "azsignin" in res_idx:
+						print(f"{Fore.YELLOW}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('ResultSignature')} {res_msg.get('AppdisplayName')} {res_msg.get('IpAddress')} {res_msg.get('Identity')} {res_msg.get('ResourceDisplayName')} blacklisted: {res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
+					elif "msgraph" in res_idx:
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('RequestMethod')} {res_msg.get('displayName')} {res_msg.get('IpAddress')} {res_msg.get('dstip')} {res_msg.get('RequestUri')}")
-					if 'citrix' in res_idx:
+					elif 'citrix' in res_idx:
 						if res_msg.get('blacklisted'):
 							blk_text = f'{Fore.RED} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
 						else:
