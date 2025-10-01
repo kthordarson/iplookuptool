@@ -7,6 +7,7 @@ from loguru import logger
 from colorama import Fore, Style
 import urllib3
 urllib3.disable_warnings()
+
 GRAYLOGAPIKEY = os.environ.get('GRAYLOGAPIKEY')
 IPFIELDS = [
 	'srcip',

@@ -26,6 +26,10 @@ async def get_crowdsec_data(args):
 						else:
 							logger.error(f"Unknown error for {args.host} json: {jsonresp}")
 							return None
+					elif response.status == 404:
+						if args.debug:
+							logger.warning(f"[!] not found {args.host}")
+						return None
 					else:
 						logger.warning(f"[!] {response.status} {response.reason} for {args.host}")
 						if args.debug:
