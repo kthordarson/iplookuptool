@@ -295,10 +295,12 @@ async def main(args):
 					elif "msgraph" in res_idx:
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('RequestMethod')} {res_msg.get('displayName')} {res_msg.get('IpAddress')} {res_msg.get('dstip')} {res_msg.get('RequestUri')}")
 					elif 'citrix' in res_idx:
-						if res_msg.get('blacklisted'):
+						if res_msg.get('blacklisted') and res_msg.get("blksource") != 'samskipexternal':
 							blk_text = f'{Fore.RED} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
+						elif res_msg.get('blacklisted') and res_msg.get("blksource") == 'samskipexternal':
+							blk_text = f'{Fore.GREEN} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
 						else:
-							blk_text = f'{Fore.GREEN} blacklisted {res_msg.get("blacklisted")} '
+							blk_text = f'{Fore.YELLOW} blacklisted {res_msg.get("blacklisted")} '
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} ")
 					else:
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} citrixtype:{res_msg.get('citrixtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
