@@ -290,10 +290,14 @@ async def main(args):
 				for res in results.get("hits").get("hits")[: args.maxoutput]:
 					res_idx = res.get("_index")
 					res_msg = res.get("_source")
-					if "azsignin" in res_idx:
-						print(f"{Fore.YELLOW}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('ResultSignature')} {res_msg.get('AppdisplayName')} {res_msg.get('IpAddress')} {res_msg.get('Identity')} {res_msg.get('ResourceDisplayName')} blacklisted: {res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
+					if 'fgutm' in res_idx:
+						print(f"{Fore.BLUE}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} ")
+					elif 'cerberusftp' in res_idx:
+						print(f"{Fore.BLUE}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} ftp_action:{res_msg.get('ftp_action')} ftp_user:{res_msg.get('ftp_user')} {Fore.CYAN} client_ipaddress:{res_msg.get('client_ipaddress')}")
+					elif "azsignin" in res_idx:
+						print(f"{Fore.BLUE}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('ResultSignature')} {res_msg.get('AppdisplayName')} {res_msg.get('IpAddress')} {res_msg.get('Identity')} {res_msg.get('ResourceDisplayName')} blacklisted: {res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
 					elif "msgraph" in res_idx:
-						print(f"{Fore.YELLOW}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('RequestMethod')} {res_msg.get('displayName')} {res_msg.get('IpAddress')} {res_msg.get('dstip')} {res_msg.get('RequestUri')}")
+						print(f"{Fore.BLUE}res_idx:{res_idx} {res_msg.get('gl2_receive_timestamp')} {res_msg.get('RequestMethod')} {res_msg.get('displayName')} {res_msg.get('IpAddress')} {res_msg.get('dstip')} {res_msg.get('RequestUri')}")
 					elif 'citrix' in res_idx:
 						if res_msg.get('blacklisted') and res_msg.get("blksource") != 'samskipexternal':
 							blk_text = f'{Fore.RED} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
