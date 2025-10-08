@@ -305,7 +305,7 @@ async def main(args):
 							blk_text = f'{Fore.GREEN} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
 						else:
 							blk_text = f'{Fore.YELLOW} blacklisted {res_msg.get("blacklisted")} '
-						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} ")
+						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} method:{res_msg.get('method')} {Fore.CYAN} nsmodule:{res_msg.get('nsmodule')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} ")
 					else:
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} citrixtype:{res_msg.get('citrixtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 				if "msg" in df.columns and "srcip" in df.columns:
