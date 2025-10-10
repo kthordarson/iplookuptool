@@ -472,14 +472,14 @@ async def main(args):
 			if args.debug:
 				logger.error(traceback.format_exc())
 		if args.debug:
-			logger.debug(f"azure signinlogs: {len(azuredata)}")
+			logger.debug(f"azure signinlogs for {args.host} {len(azuredata)} ")
 		if len(azuredata) >= 1:
 			print(f"{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(azuredata)}")
 			if len(azuredata) > 0:
 				for logentry in azuredata[: args.maxoutput]:
 					timest = logentry.get("TimeGenerated")
 					status = json.loads(logentry.get("Status"))  # type: ignore
-					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')} riskdetail: {logentry.get('RiskDetail')} resourcedisplayname: {logentry.get('ResourceDisplayName')} authenticationrequirement: {logentry.get('AuthenticationRequirement')}")  # type: ignore
+					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} AppDisplayName: {logentry.get('AppDisplayName')} mfa: {logentry.get('MfaDetail')} riskdetail: {logentry.get('RiskDetail')} resourcedisplayname: {logentry.get('ResourceDisplayName')} authenticationrequirement: {logentry.get('AuthenticationRequirement')}")  # type: ignore
 			else:
 				print(
 					f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}"
