@@ -386,77 +386,76 @@ def print_graylog_summary(search_results):
 	"""
 	summary = summarize_graylog_results(search_results)
 	try:
-		print(f"\n{Fore.LIGHTBLUE_EX}=== Graylog Search Results Summary ==={Style.RESET_ALL}")
-		print(f"{Fore.CYAN}Total Results: {Fore.YELLOW}{summary['total_results']} {Fore.CYAN}Analyzed: {Fore.YELLOW}{summary['results_analyzed']}")
+		print(f"{Fore.CYAN}Graylog Total Results: {Fore.YELLOW}{summary['total_results']} {Fore.CYAN}Analyzed: {Fore.YELLOW}{summary['results_analyzed']}")
 	except KeyError as e:
 		logger.error(f'Error printing graylog summary: {e} summary={summary}')
 		print(f"{Fore.RED}Error: Invalid search results format{Style.RESET_ALL}")
 		return
 
 	if summary['log_types']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Log Types:")
+		print(f"{Fore.LIGHTBLUE_EX}Log Types:")
 		for log_type, count in summary['log_types'].items():
 			print(f"  {Fore.CYAN}{log_type}: {Fore.YELLOW}{count}")
 
 	if summary['event_types']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Event Types:")
+		print(f"{Fore.LIGHTBLUE_EX}Event Types:")
 		for event_type, count in summary['event_types'].items():
 			print(f"  {Fore.CYAN}{event_type}: {Fore.YELLOW}{count}")
 
 	if summary['top_actions']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Actions:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Actions:")
 		for action, count in summary['top_actions'].items():
 			print(f"  {Fore.CYAN}{action}: {Fore.YELLOW}{count}")
 
 	if summary['top_source_ips']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Source IPs:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Source IPs:")
 		for ip, count in summary['top_source_ips'].items():
 			print(f"  {Fore.CYAN}{ip}: {Fore.YELLOW}{count}")
 
 	if summary['top_dest_ips']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Destination IPs:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Destination IPs:")
 		for ip, count in summary['top_dest_ips'].items():
 			print(f"  {Fore.CYAN}{ip}: {Fore.YELLOW}{count}")
 
 	if summary['top_devices']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Devices:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Devices:")
 		for device, count in summary['top_devices'].items():
 			print(f"  {Fore.CYAN}{device}: {Fore.YELLOW}{count}")
 
 	if summary['top_services']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Services:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Services:")
 		for service, count in summary['top_services'].items():
 			print(f"  {Fore.CYAN}{service}: {Fore.YELLOW}{count}")
 
 	if summary['top_countries']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Countries:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Countries:")
 		for country, count in summary['top_countries'].items():
 			print(f"  {Fore.CYAN}{country}: {Fore.YELLOW}{count}")
 
 	if summary['top_modules']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Modules:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Modules:")
 		for module, count in summary['top_modules'].items():
 			print(f"  {Fore.CYAN}{module}: {Fore.YELLOW}{count}")
 
 	if summary['top_vservers']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Virtual Servers:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Virtual Servers:")
 		for vserver, count in summary['top_vservers'].items():
 			print(f"  {Fore.CYAN}{vserver}: {Fore.YELLOW}{count}")
 
 	if summary['top_destinations']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Top Destinations:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Destinations:")
 		for dest, count in summary['top_destinations'].items():
 			print(f"  {Fore.CYAN}{dest}: {Fore.YELLOW}{count}")
 
 	if summary['traffic_stats']['total_bytes_received'] > 0 or summary['traffic_stats']['total_bytes_sent'] > 0:
-		print(f"\n{Fore.LIGHTBLUE_EX}Traffic Statistics:")
+		print(f"{Fore.LIGHTBLUE_EX}Traffic Statistics:")
 		print(f"  {Fore.CYAN}Total Bytes Received: {Fore.YELLOW}{summary['traffic_stats']['total_bytes_received']:,}")
 		print(f"  {Fore.CYAN}Total Bytes Sent: {Fore.YELLOW}{summary['traffic_stats']['total_bytes_sent']:,}")
 		print(f"  {Fore.CYAN}Unique Sources: {Fore.YELLOW}{summary['traffic_stats']['unique_source_count']}")
 		print(f"  {Fore.CYAN}Unique Destinations: {Fore.YELLOW}{summary['traffic_stats']['unique_destination_count']}")
 
 	if summary['time_range']['earliest'] and summary['time_range']['latest']:
-		print(f"\n{Fore.LIGHTBLUE_EX}Time Range:")
+		print(f"{Fore.LIGHTBLUE_EX}Time Range:")
 		print(f"  {Fore.CYAN}Earliest: {Fore.YELLOW}{summary['time_range']['earliest']}")
 		print(f"  {Fore.CYAN}Latest: {Fore.YELLOW}{summary['time_range']['latest']}")
 		print(f"  {Fore.CYAN}Total Events with Timestamps: {Fore.YELLOW}{summary['time_range']['count']}")

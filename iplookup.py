@@ -245,8 +245,6 @@ async def main(args):
 			df = pd.DataFrame([k["_source"] for k in results.get("hits").get("hits")])
 			# Additional detailed analysis
 			if results.get("hits").get("total").get("value") > 0:
-				print(f"\n{Fore.LIGHTBLUE_EX}=== Detailed Analysis ==={Style.RESET_ALL}")
-
 				# Citrix specific analysis
 				if "citrixtype" in df.columns or "type" in df.columns:
 					if "citrixtype" in df.columns or (df["type"] == "citrixtype").any():
