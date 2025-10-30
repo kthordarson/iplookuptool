@@ -8,6 +8,7 @@ import json
 from loguru import logger
 from colorama import Fore, Style
 from ipaddress import ip_address
+from opensearchpy.exceptions import RequestError
 from myglapi.rest import ApiException
 from modules.virustotal import (get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo)
 from modules.abuseipdb import get_abuseipdb_data
@@ -289,7 +290,9 @@ async def main(args):
 					res_idx = res.get("_index")
 					res_msg = res.get("_source")
 					if 'fgutm' in res_idx:
-						print(f"{Fore.BLUE}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} ")
+						print(f"{Fore.BLUE}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} {res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
+					elif 'fgvpn' in res_idx:
+						print(f"{Fore.BLUE}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} {Fore.CYAN} action:{res_msg.get('action')} remip:{res_msg.get('remip')}  msg: {res_msg.get('msg')} blacklisted: {res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')} ")
 					elif 'cerberusftp' in res_idx:
 						print(f"{Fore.BLUE}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} ftp_action:{res_msg.get('ftp_action')} ftp_user:{res_msg.get('ftp_user')} {Fore.CYAN} client_ipaddress:{res_msg.get('client_ipaddress')}")
 					elif "azsignin" in res_idx:
@@ -303,7 +306,7 @@ async def main(args):
 							blk_text = f'{Fore.GREEN} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
 						else:
 							blk_text = f'{Fore.YELLOW} blacklisted {res_msg.get("blacklisted")} '
-						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} method:{res_msg.get('method')} {Fore.CYAN} nsmodule:{res_msg.get('nsmodule')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} ")
+						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} src:{res_msg.get('src')} ClientIP:{res_msg.get('ClientIP')} SourceAddress:{res_msg.get('SourceAddress')} method:{res_msg.get('method')} {Fore.CYAN} nsmodule:{res_msg.get('nsmodule')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} ")
 					else:
 						print(f"{Fore.YELLOW}res_idx:{res_idx} {Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} citrixtype:{res_msg.get('citrixtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 				if "msg" in df.columns and "srcip" in df.columns:
@@ -341,6 +344,9 @@ async def main(args):
 		res_msg = {}
 		try:
 			results = await graylog_search(query=searchquery, range=86400)
+		except RequestError as e:
+			logger.warning(f"graylog search error: {e}")
+			results = None
 		except ApiException as e:
 			logger.warning(f"graylog search error: {e}")
 			results = None
@@ -469,8 +475,8 @@ async def main(args):
 			azuredata = []
 			if args.debug:
 				logger.error(traceback.format_exc())
-		if args.debug:
-			logger.debug(f"azure signinlogs for {args.host} {len(azuredata)} ")
+		# if args.debug:
+		# 	logger.debug(f"azure signinlogs for {args.host} {len(azuredata)} ")
 		if len(azuredata) >= 1:
 			print(f"{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(azuredata)}")
 			if len(azuredata) > 0:
@@ -479,9 +485,7 @@ async def main(args):
 					status = json.loads(logentry.get("Status"))  # type: ignore
 					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} AppDisplayName: {logentry.get('AppDisplayName')} mfa: {logentry.get('MfaDetail')} riskdetail: {logentry.get('RiskDetail')} resourcedisplayname: {logentry.get('ResourceDisplayName')} authenticationrequirement: {logentry.get('AuthenticationRequirement')}")  # type: ignore
 			else:
-				print(
-					f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}"
-				)
+				print(f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}")
 
 	if args.defender:
 		try:

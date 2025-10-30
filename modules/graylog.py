@@ -62,7 +62,7 @@ async def graylog_search_ip(ip_address, range=86400):
 	# search = SearchuniversalrelativeApi()
 	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
 	# ipaddr = args.host  # '31.209.157.27'
-	query = {'size': 5,'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip']}}}
+	# query = {'size': 5,'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip']}}}
 
 	query = {'query': {'multi_match': {'query': ip_address,'fields': IPFIELDS}}}
 	res = None
@@ -89,11 +89,12 @@ async def graylog_search(query, range=86400):
 	# search = SearchuniversalrelativeApi()
 	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
 	# ipaddr = args.host  # '31.209.157.27'
-	query = {'size': 5,'query': {'multi': {'query': query}}}  # ,'fields': ['srcip', 'dstip']}}}
+	# query = {'size': 5,'query': {'multi': {'query': query}}}  # ,'fields': ['srcip', 'dstip']}}}
 
 	# query = {'size': 5,'query': {'multi': {'query': query}}}  # ,'fields': ['srcip', 'dstip']}}}
 	# urlquery = {'query': {'multi_match': {'query': url,'fields': ['url', 'request_path']}}}
-	query = {'query': {'multi_match': {'query': query,'fields': ['url', 'request_path']}}}
+	# query = {'query': {'multi_match': {'query': query,'fields': ['url', 'request_path']}}}
+	query = {'query': {'multi_match': {'query': query,'fields': IPFIELDS}}}
 	res = {}
 	if not os.environ.get('OPENSEARCHOST'):
 		logger.error('OPENSEARCHOST environment variable not set')
@@ -107,7 +108,7 @@ async def graylog_search(query, range=86400):
 		try:
 			res = await client.search(body=query, size=10000)
 		except Exception as e:
-			logger.error(f'graylog search error: {e} {type(e)}')
+			logger.error(f'graylog search error: {e} {type(e)} for query={query}')
 			raise e
 		# logger.debug(f'[s] searchres: {res} q={query} range={range}')
 		return res
@@ -395,18 +396,18 @@ def print_graylog_summary(search_results):
 	if summary['log_types']:
 		print(f"{Fore.LIGHTBLUE_EX}Log Types:")
 		for log_type, count in summary['log_types'].items():
-			print(f"  {Fore.CYAN}{log_type}: {Fore.YELLOW}{count}")
-
+			print(f"  {Fore.CYAN}{log_type}: {Fore.YELLOW}{count}", end='')
+		print()
 	if summary['event_types']:
 		print(f"{Fore.LIGHTBLUE_EX}Event Types:")
 		for event_type, count in summary['event_types'].items():
-			print(f"  {Fore.CYAN}{event_type}: {Fore.YELLOW}{count}")
-
+			print(f"  {Fore.CYAN}{event_type}: {Fore.YELLOW}{count}", end='')
+		print()
 	if summary['top_actions']:
 		print(f"{Fore.LIGHTBLUE_EX}Top Actions:")
 		for action, count in summary['top_actions'].items():
-			print(f"  {Fore.CYAN}{action}: {Fore.YELLOW}{count}")
-
+			print(f"  {Fore.CYAN}{action}: {Fore.YELLOW}{count}", end='')
+		print()
 	if summary['top_source_ips']:
 		print(f"{Fore.LIGHTBLUE_EX}Top Source IPs:")
 		for ip, count in summary['top_source_ips'].items():
@@ -435,8 +436,8 @@ def print_graylog_summary(search_results):
 	if summary['top_modules']:
 		print(f"{Fore.LIGHTBLUE_EX}Top Modules:")
 		for module, count in summary['top_modules'].items():
-			print(f"  {Fore.CYAN}{module}: {Fore.YELLOW}{count}")
-
+			print(f"  {Fore.CYAN}{module}: {Fore.YELLOW}{count}", end='')
+		print()
 	if summary['top_vservers']:
 		print(f"{Fore.LIGHTBLUE_EX}Top Virtual Servers:")
 		for vserver, count in summary['top_vservers'].items():
@@ -455,10 +456,11 @@ def print_graylog_summary(search_results):
 		print(f"  {Fore.CYAN}Unique Destinations: {Fore.YELLOW}{summary['traffic_stats']['unique_destination_count']}")
 
 	if summary['time_range']['earliest'] and summary['time_range']['latest']:
-		print(f"{Fore.LIGHTBLUE_EX}Time Range:")
-		print(f"  {Fore.CYAN}Earliest: {Fore.YELLOW}{summary['time_range']['earliest']}")
-		print(f"  {Fore.CYAN}Latest: {Fore.YELLOW}{summary['time_range']['latest']}")
-		print(f"  {Fore.CYAN}Total Events with Timestamps: {Fore.YELLOW}{summary['time_range']['count']}")
+		print(f"{Fore.LIGHTBLUE_EX}Time Range:", end='')
+		print(f"  {Fore.CYAN}Earliest: {Fore.YELLOW}{summary['time_range']['earliest']}", end='')
+		print(f"  {Fore.CYAN}Latest: {Fore.YELLOW}{summary['time_range']['latest']}", end='')
+		print(f"  {Fore.CYAN}Total Events with Timestamps: {Fore.YELLOW}{summary['time_range']['count']}", end='')
+		print()
 
 	print(f"{Style.RESET_ALL}")
 
