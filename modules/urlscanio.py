@@ -5,7 +5,7 @@ import asyncio
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-urllib3.disable_warnings(urllib3.exceptions.SSLError)
+urllib3.disable_warnings(urllib3.exceptions.SSLError)  # type: ignore
 
 async def xxxget_urlscanio_data(args):
 	# https://urlscan.io/docs/api/
