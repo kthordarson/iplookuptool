@@ -59,11 +59,6 @@ def format_datetime(input_str):
 		return "Invalid input format"
 
 async def graylog_search_ip(args, range=86400):
-	# search = SearchuniversalrelativeApi()
-	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
-	# ipaddr = args.host  # '31.209.157.27'
-	# query = {'size': 5,'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip']}}}
-
 	query = {'query': {'multi_match': {'query': args.host,'fields': IPFIELDS}}}
 	res = None
 	if not os.environ.get('OPENSEARCHOST'):
@@ -86,14 +81,6 @@ async def graylog_search_ip(args, range=86400):
 			return res
 
 async def graylog_search(query, range=86400):
-	# search = SearchuniversalrelativeApi()
-	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
-	# ipaddr = args.host  # '31.209.157.27'
-	# query = {'size': 5,'query': {'multi': {'query': query}}}  # ,'fields': ['srcip', 'dstip']}}}
-
-	# query = {'size': 5,'query': {'multi': {'query': query}}}  # ,'fields': ['srcip', 'dstip']}}}
-	# urlquery = {'query': {'multi_match': {'query': url,'fields': ['url', 'request_path']}}}
-	# query = {'query': {'multi_match': {'query': query,'fields': ['url', 'request_path']}}}
 	query = {'query': {'multi_match': {'query': query,'fields': IPFIELDS}}}
 	res = {}
 	if not os.environ.get('OPENSEARCHOST'):
@@ -285,7 +272,7 @@ def summarize_graylog_results(search_results):
 					continue
 
 		# Destination IPs
-		for ip_field in ['dstip', 'VserverServiceIP']:
+		for ip_field in IPFIELDS:  # ['dstip', 'VserverServiceIP']:
 			if ip_field in source and source[ip_field]:
 				if isinstance(source[ip_field], str):
 					dest_ips[source[ip_field]] += 1

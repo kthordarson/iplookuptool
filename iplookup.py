@@ -288,9 +288,12 @@ async def main(args):
 				print(f"{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}")
 				# for res in results.get("hits").get("hits")[: args.maxoutput]:
 				index_list = list(set([k.get('_index') for k in results.get("hits").get("hits")]))
+				# index_temp_name_list = list(set([k.split('_')[0] for k in index_list]))
+				# index_temp_idx_list = list(set([k.split('_')[1] for k in index_list]))
+				# indextmp = [{'idxname':k.split('_')[0],'idxnum':k.split('_')[1]} for k in index_list]
 				for index_name in index_list:
-					print(f"{Fore.LIGHTGREEN_EX}{index_name} {Fore.RESET} ")
 					index_hits = [k for k in results.get("hits").get("hits") if k['_index'] == index_name]
+					print(f"{Fore.LIGHTGREEN_EX}{index_name} hits: {Fore.CYAN}{len(index_hits)} {Fore.RESET} ")
 					# for idx,res in enumerate(results.get("hits").get("hits")):
 					for idx,res in enumerate(index_hits):
 						res_idx = res.get("_index")
@@ -298,6 +301,7 @@ async def main(args):
 						if idx >= args.maxoutput:
 							if args.debug:
 								logger.info(f"graylog max {idx} output {args.maxoutput} reached for index {index_name}")
+								# logger.debug(f'res_msgkeys: {res_msg.keys()} ')
 							break
 						if res_idx != index_name:
 							if args.debug:
@@ -305,15 +309,17 @@ async def main(args):
 							break
 						elif res_idx == index_name:
 							if 'fgutm' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} {res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
+								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
 							if 'fortitraffic' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} {res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
+								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} dstport:{res_msg.get('dstport')}  tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
 							elif 'fgvpn' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} {Fore.CYAN} action:{res_msg.get('action')} remip:{res_msg.get('remip')}  msg: {res_msg.get('msg')} blacklisted: {res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')} ")
+								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} {Fore.CYAN} action:{res_msg.get('action')} remip:{res_msg.get('remip')}  msg: {res_msg.get('msg')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')} ")
 							elif 'cerberusftp' in res_idx:
 								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} ftp_action:{res_msg.get('ftp_action')} ftp_user:{res_msg.get('ftp_user')} {Fore.CYAN} client_ipaddress:{res_msg.get('client_ipaddress')}")
-							elif "azsignin" in res_idx or 'azaudit' in res_idx:
+							elif "azsignin" in res_idx:
 								print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} res:{Fore.LIGHTBLUE_EX}{res_msg.get('ResultSignature')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
+							elif 'azaudit' in res_idx:
+								print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} ActivityDisplayName:{Fore.LIGHTBLUE_EX}{res_msg.get('ActivityDisplayName')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')} ResultSignature: {res_msg.get('ResultSignature')}")
 							elif "msgraph" in res_idx:
 								print(f"\t{Fore.CYAN}{res_msg.get('gl2_receive_timestamp')} {Fore.BLUE}method: {Fore.LIGHTBLUE_EX}{res_msg.get('RequestMethod')} dispname:{res_msg.get('displayName')} ip:{res_msg.get('IpAddress')} dstip:{res_msg.get('dstip')} {res_msg.get('RequestUri')}")
 							elif "securityaudit" in res_idx:
@@ -327,7 +333,7 @@ async def main(args):
 									blk_text = f'{Fore.YELLOW} blacklisted {res_msg.get("blacklisted")} '
 								print(f"\t{Fore.YELLOW}{Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} module:{res_msg.get('module')} ClientIP:{res_msg.get('ClientIP')} SourceAddress:{res_msg.get('SourceAddress')} method:{res_msg.get('method')} {Fore.CYAN} nsmodule:{res_msg.get('nsmodule')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} hostname: {res_msg.get('hostname')} ")
 							else:
-								print(f"\t{Fore.YELLOW}{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} transip:{res_msg.get('transip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
+								print(f"\t{Fore.YELLOW}{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
 				if "msg" in df.columns and "srcip" in df.columns:
 					print(f"{Fore.LIGHTBLUE_EX}top 15 actions by srcip:")
 					try:
