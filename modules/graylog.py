@@ -58,13 +58,13 @@ def format_datetime(input_str):
 	except (ValueError, TypeError):
 		return "Invalid input format"
 
-async def graylog_search_ip(ip_address, range=86400):
+async def graylog_search_ip(args, range=86400):
 	# search = SearchuniversalrelativeApi()
 	# client = OpenSearch(hosts=os.environ.get('GRAYLOG_HOST'), use_ssl=False, verify_certs=False, http_auth=(os.environ.get('GRAYLOG_USER'),os.environ.get('GRAYLOG_PASS')))
 	# ipaddr = args.host  # '31.209.157.27'
 	# query = {'size': 5,'query': {'multi_match': {'query': ip_address,'fields': ['srcip', 'dstip', 'remip']}}}
 
-	query = {'query': {'multi_match': {'query': ip_address,'fields': IPFIELDS}}}
+	query = {'query': {'multi_match': {'query': args.host,'fields': IPFIELDS}}}
 	res = None
 	if not os.environ.get('OPENSEARCHOST'):
 		logger.error('OPENSEARCHOST environment variable not set')
@@ -273,7 +273,7 @@ def summarize_graylog_results(search_results):
 			actions[source['action']] += 1
 
 		# Source IPs
-		for ip_field in ['srcip', 'Remote_ip', 'ClientIP', 'source','SourceAddress','VserverAddress','NatIPaddress', 'transip', 'client_ipaddress']:
+		for ip_field in IPFIELDS:  # ['srcip', 'Remote_ip', 'ClientIP', 'source','SourceAddress','VserverAddress','NatIPaddress', 'transip', 'client_ipaddress']:
 			if ip_field in source and source[ip_field]:
 				try:
 					# Only process if it's a string (IP address)
@@ -394,17 +394,17 @@ def print_graylog_summary(search_results):
 		return
 
 	if summary['log_types']:
-		print(f"{Fore.LIGHTBLUE_EX}Log Types:")
+		print(f"{Fore.LIGHTBLUE_EX}Log Types:", end='')
 		for log_type, count in summary['log_types'].items():
 			print(f"  {Fore.CYAN}{log_type}: {Fore.YELLOW}{count}", end='')
 		print()
 	if summary['event_types']:
-		print(f"{Fore.LIGHTBLUE_EX}Event Types:")
+		print(f"{Fore.LIGHTBLUE_EX}Event Types:", end='')
 		for event_type, count in summary['event_types'].items():
 			print(f"  {Fore.CYAN}{event_type}: {Fore.YELLOW}{count}", end='')
 		print()
 	if summary['top_actions']:
-		print(f"{Fore.LIGHTBLUE_EX}Top Actions:")
+		print(f"{Fore.LIGHTBLUE_EX}Top Actions:", end='')
 		for action, count in summary['top_actions'].items():
 			print(f"  {Fore.CYAN}{action}: {Fore.YELLOW}{count}", end='')
 		print()
