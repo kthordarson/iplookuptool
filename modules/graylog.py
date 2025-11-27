@@ -75,10 +75,8 @@ async def graylog_search_ip(args, range=86400):
 		except Exception as e:
 			logger.error(f'graylog search error: {e} {type(e)}')
 			raise e
-		# logger.debug(f'[s] searchres: {res} q={query} range={range}')
-		finally:
-			await client.close()
-			return res
+		await client.close()
+		return res
 
 async def graylog_search(query, range=86400):
 	query = {'query': {'multi_match': {'query': query,'fields': IPFIELDS}}}

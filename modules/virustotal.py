@@ -2,7 +2,7 @@ from loguru import logger
 import os
 import aiohttp
 
-VTAPIKEY = os.environ.get("VTAPIKEY")
+VTAPIKEY = os.environ.get("VTAPIKEY",'')
 if not VTAPIKEY:
 	logger.error('missing virus total api key')
 	os._exit(-1)
@@ -80,8 +80,7 @@ async def get_vt_ipinfo(args):
 			vtipinfo = await client.get_object_async(f'/ip_addresses/{args.host}')
 	except Exception as e:
 		logger.error(f'[!] unhandled {e} {type(e)} addr: {args.host}')
-	finally:
-		return vtipinfo
+	return vtipinfo
 
 async def do_vt_search(ipaddr, limit=10):
 	async with Client(VTAPIKEY) as client:

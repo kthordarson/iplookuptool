@@ -24,6 +24,10 @@ import urllib3
 
 urllib3.disable_warnings()
 
+# todo check
+# https://cleantalk.org
+# https://www.malwareurl.com
+# https://urlhaus.abuse.ch/api/
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
@@ -201,8 +205,6 @@ async def main(args):
 			as_owner = vtinfo.get("as_owner", "None")
 			# vt_aso = vtinfo.as_owner
 			total_votes = vtinfo.get("total_votes", {})
-			as_owner = {}
-			total_votes = {}
 			suspicious = last_analysis_stats.get('suspicious')  # type: ignore
 			malicious = last_analysis_stats.get('malicious')  # type: ignore
 			malicious += int(total_votes.get("malicious", 0))
@@ -210,7 +212,7 @@ async def main(args):
 				vtforecolor = Fore.RED
 			else:
 				vtforecolor = Fore.GREEN
-			print(f"{Fore.LIGHTBLUE_EX}vt\t{args.host} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
+			print(f"{Fore.LIGHTBLUE_EX}vt\t{args.host} as_owner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
 			for vendor in last_analysis_results:  # type: ignore
 				if last_analysis_results.get(vendor).get("category") in ('suspicious', "malicious"):  # type: ignore
 					print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result: {last_analysis_results.get(vendor).get('result')} {last_analysis_results.get(vendor).get('method')} ")  # type: ignore

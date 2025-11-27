@@ -4,8 +4,8 @@ import aiohttp
 
 CROWDSECAPIKEY = os.environ.get("CROWDSECAPIKEY")
 if not CROWDSECAPIKEY:
-	logger.error("missing crowdsec api key")
-	os._exit(-1)
+	logger.warning("missing crowdsec api key")
+	# os._exit(-1)
 
 async def get_crowdsec_data(args):
 	if CROWDSECAPIKEY:
