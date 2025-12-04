@@ -4,7 +4,7 @@ from loguru import logger
 
 async def spam_lookup(args):
 	bl = ['ubl.unsubscore.com','dyna.spamrats.com','dnsbl-3.uceprotect.net','dnsbl-1.uceprotect.net','rf.senderbase.org','spam.dnsbl.sorbs.net','bl.spameatingmonkey.net','bl.spamcannibal.org','socks.dnsbl.sorbs.net','spam.spamrats.com','smtp.dnsbl.sorbs.net','ips.backscatterer.org','bl.blocklist.de','zen.spamhaus.org','rbl.interserver.net','rbl.abuse.ro','dnsbl-2.uceprotect.net','cncdl.anti-spam.org','dnsbl.dronebl.org','query.senderbase.org','sa.senderbase.org','cbl.anti-spam.org','b.barracudacentral.org','spam.dnsbl.anonmails.de','web.dnsbl.sorbs.net','pbl.spamhaus.org','bl.spamcop.net','http.dnsbl.sorbs.net','dnsbl-0.uceprotect.net','dnsbl.sorbs.net','csi.cloudmark.com','zombie.dnsbl.sorbs.net','noptr.spamrats.com','xbl.spamhaus.org','bl.score.senderscore.com','bl.mailspike.net','sbl.spamhaus.org','misc.dnsbl.sorbs.net','dul.dnsbl.sorbs.net','cbl.abuseat.org','multi.surbl.org']
-	ip_rev = '.'.join(str(args.ipaddress).split('.')[::-1])
+	ip_rev = '.'.join(str(args.ip).split('.')[::-1])
 	listed = 0
 	l_rbl = []
 
@@ -18,7 +18,7 @@ async def spam_lookup(args):
 			# Not listed in this blacklist (expected for most lookups)
 			return None
 		except Exception as e:
-			logger.error(f'[!] Error checking {bl_host}: {e} {type(e)} for address {args.ipaddress}')
+			logger.error(f'[!] Error checking {bl_host}: {e} {type(e)} for address {args.ip}')
 			return None
 
 	# Run all blacklist checks concurrently
@@ -28,14 +28,14 @@ async def spam_lookup(args):
 		# Process results
 		for result in results:
 			if isinstance(result, Exception):
-				logger.error(f'[!] Error in blacklist check: {result} for address {args.ipaddress}')
+				logger.error(f'[!] Error in blacklist check: {result} for address {args.ip}')
 				continue
 			if result:  # If blacklist name is returned, IP is listed
 				l_rbl.append(result)
 				listed += 1
 
 	except Exception as e:
-		logger.error(f'[!] Error in spam lookup: {e} {type(e)} for address {args.ipaddress}')
+		logger.error(f'[!] Error in spam lookup: {e} {type(e)} for address {args.ip}')
 		return None
 
 	return [str(listed), l_rbl]

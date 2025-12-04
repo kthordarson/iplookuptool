@@ -59,7 +59,7 @@ def format_datetime(input_str):
 		return "Invalid input format"
 
 async def graylog_search_ip(args, range=86400):
-	query = {'query': {'multi_match': {'query': args.host,'fields': IPFIELDS}}}
+	query = {'query': {'multi_match': {'query': args.ip,'fields': IPFIELDS}}}
 	res = None
 	if not os.environ.get('OPENSEARCHOST'):
 		logger.error('OPENSEARCHOST environment variable not set')

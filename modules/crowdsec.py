@@ -13,7 +13,7 @@ async def get_crowdsec_data(args):
 		# curl -H "x-api-key: YOUR_API_KEY" https://cti.api.crowdsec.net/v2/smoke/185.7.214.104 | jq .
 		try:
 			async with aiohttp.ClientSession() as session:
-				async with session.get(f"https://cti.api.crowdsec.net/v2/smoke/{args.host}", headers=headers) as response:
+				async with session.get(f"https://cti.api.crowdsec.net/v2/smoke/{args.ip}", headers=headers) as response:
 					if response.status == 200:
 						try:
 							jsonresp = await response.json()
@@ -24,15 +24,15 @@ async def get_crowdsec_data(args):
 							data = jsonresp
 							return data
 						else:
-							logger.error(f"Unknown error for {args.host} json: {jsonresp}")
+							logger.error(f"Unknown error for {args.ip} json: {jsonresp}")
 							return None
 					elif response.status == 404:
 						if args.debug:
 							text = await response.text()
-							logger.warning(f"[!] not found {args.host} {text}")  # type: ignore
+							logger.warning(f"[!] not found {args.ip} {text}")  # type: ignore
 						return None
 					else:
-						logger.warning(f"[!] {response.status} {response.reason} for {args.host}")
+						logger.warning(f"[!] {response.status} {response.reason} for {args.ip}")
 						if args.debug:
 							logger.warning(f"headers: {response.headers}")
 							logger.warning(f"text: {await response.text()}")
