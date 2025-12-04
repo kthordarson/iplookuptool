@@ -24,6 +24,10 @@ import urllib3
 
 urllib3.disable_warnings()
 
+# todo
+# add https://cleantalk.org/blacklists/34.149.87.45
+# add https://www.netify.ai/resources/ips/34.149.87.45
+# add https://www.criminalip.io/asset/report/34.149.87.45
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
@@ -187,8 +191,11 @@ async def main(args):
 		# ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
 		ipaddress = ip_address(args.host)
 		if ipaddress.is_global:
-			whois_info = await get_ipwhois(args)
-			print(f"{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}")
+			try:
+				whois_info = await get_ipwhois(args)
+				print(f"{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}")
+			except Exception as e:
+				logger.error(f"ipwhois error: {e} {type(e)} for {args.ipaddress}")
 		elif ipaddress.is_private:
 			print(f"{Fore.YELLOW}private address: {ipaddress}")
 
@@ -201,7 +208,7 @@ async def main(args):
 			as_owner = vtinfo.get("as_owner", "None")
 			# vt_aso = vtinfo.as_owner
 			total_votes = vtinfo.get("total_votes", {})
-			as_owner = {}
+			# as_owner = {}
 			total_votes = {}
 			suspicious = last_analysis_stats.get('suspicious')  # type: ignore
 			malicious = last_analysis_stats.get('malicious')  # type: ignore
