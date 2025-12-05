@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import traceback
 import asyncio
-import pandas as pd
 import os
 import argparse
 import json
