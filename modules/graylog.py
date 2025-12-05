@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import re
 from datetime import datetime
 from collections import Counter
@@ -450,6 +451,124 @@ def print_graylog_summary(search_results):
 		print()
 
 	print(f"{Style.RESET_ALL}")
+
+def print_graylog_data(results, args):
+	df = pd.DataFrame([k["_source"] for k in results.get("hits").get("hits")])
+	# Additional detailed analysis
+	# if results.get("hits").get("total").get("value") > 0:
+	# Citrix specific analysis
+	if "citrixtype" in df.columns or "type" in df.columns:
+		if "citrixtype" in df.columns or (df["type"] == "citrixtype").any():
+			print(f"{Fore.LIGHTBLUE_EX}Citrix NetScaler Data Analysis:")
+
+			# Analyze traffic patterns
+			if "Total_bytes_recv" in df.columns and "Total_bytes_send" in df.columns:
+				total_recv = df["Total_bytes_recv"].sum()
+				total_sent = df["Total_bytes_send"].sum()
+				print(f"  {Fore.CYAN}Total Traffic - Received: {Fore.YELLOW}{total_recv:,} bytes {Fore.CYAN}Sent: {Fore.YELLOW}{total_sent:,} bytes")
+
+			# Top destinations
+			if "Destination" in df.columns:
+				top_destinations = df["Destination"].value_counts().head(10)
+				print(f"  {Fore.CYAN}Top Destinations:")
+				for dest, count in top_destinations.items():
+					print(f"    {Fore.YELLOW}{dest}: {count}")
+
+			# Virtual server analysis
+			if "Vserver" in df.columns:
+				vservers = df["Vserver"].value_counts().head(5)
+				print(f"  {Fore.CYAN}Virtual Servers:")
+				for vserver, count in vservers.items():
+					print(f"    {Fore.YELLOW}{vserver}: {count}")
+
+			# Source and destination address patterns
+			if "SourceAddress" in df.columns and "DestinationAddress" in df.columns:
+				unique_sources = df["SourceAddress"].nunique()
+				unique_dests = df["DestinationAddress"].nunique()
+				print(f"  {Fore.CYAN}Connection Diversity - Unique Sources: {Fore.YELLOW}{unique_sources} {Fore.CYAN}Unique Destinations: {Fore.YELLOW}{unique_dests}")
+
+		# Time-based analysis
+		if "timestamp" in df.columns:
+			df["hour"] = pd.to_datetime(df["timestamp"]).dt.hour
+			hourly_activity = df["hour"].value_counts().sort_index()
+			print(f"  {Fore.CYAN}Hourly Activity Distribution:")
+			for hour, count in hourly_activity.head(10).items():
+				print(f"    {Fore.YELLOW}Hour {hour:02d}: {count} events")
+
+		print(f"{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}")
+		# for res in results.get("hits").get("hits")[: args.maxoutput]:
+		index_list = list(set([k.get('_index') for k in results.get("hits").get("hits")]))
+		# index_temp_name_list = list(set([k.split('_')[0] for k in index_list]))
+		# index_temp_idx_list = list(set([k.split('_')[1] for k in index_list]))
+		# indextmp = [{'idxname':k.split('_')[0],'idxnum':k.split('_')[1]} for k in index_list]
+		for index_name in index_list:
+			index_hits = [k for k in results.get("hits").get("hits") if k['_index'] == index_name]
+			print(f"{Fore.LIGHTGREEN_EX}{index_name} hits: {Fore.CYAN}{len(index_hits)} {Fore.RESET} ")
+			# for idx,res in enumerate(results.get("hits").get("hits")):
+			for idx,res in enumerate(index_hits):
+				res_idx = res.get("_index")
+				res_msg = res.get("_source")
+				if idx >= args.maxoutput:
+					if args.debug:
+						logger.info(f"graylog max {idx} output {args.maxoutput} reached for index {index_name}")
+						# logger.debug(f'res_msgkeys: {res_msg.keys()} ')
+					break
+				if res_idx != index_name:
+					if args.debug:
+						logger.warning(f"{res_idx} != {index_name}  - skipping")
+					break
+				elif res_idx == index_name:
+					if 'fgutm' in res_idx:
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
+					if 'fortitraffic' in res_idx:
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} dstport:{res_msg.get('dstport')}  tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
+					elif 'fgvpn' in res_idx:
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} {Fore.CYAN} action:{res_msg.get('action')} remip:{res_msg.get('remip')}  msg: {res_msg.get('msg')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')} ")
+					elif 'cerberusftp' in res_idx:
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} ftp_action:{res_msg.get('ftp_action')} ftp_user:{res_msg.get('ftp_user')} {Fore.CYAN} client_ipaddress:{res_msg.get('client_ipaddress')}")
+					elif "azsignin" in res_idx:
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} res:{Fore.LIGHTBLUE_EX}{res_msg.get('ResultSignature')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
+					elif 'azaudit' in res_idx:
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} ActivityDisplayName:{Fore.LIGHTBLUE_EX}{res_msg.get('ActivityDisplayName')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')} ResultSignature: {res_msg.get('ResultSignature')}")
+					elif "msgraph" in res_idx:
+						print(f"\t{Fore.CYAN}{res_msg.get('gl2_receive_timestamp')} {Fore.BLUE}method: {Fore.LIGHTBLUE_EX}{res_msg.get('RequestMethod')} dispname:{res_msg.get('displayName')} ip:{res_msg.get('IpAddress')} dstip:{res_msg.get('dstip')} {res_msg.get('RequestUri')}")
+					elif "securityaudit" in res_idx:
+						print(f"\t{Fore.CYAN}{res_msg.get('gl2_receive_timestamp')} user:{Fore.LIGHTBLUE_EX}{res_msg.get('username')} computer:{Fore.LIGHTGREEN_EX}{res_msg.get('computer_name')} {Fore.BLUE}event_id: {Fore.LIGHTBLUE_EX}{res_msg.get('event_id')} {res_msg.get('event_outcome')} {res_msg.get('IpAddress')} {res_msg.get('event_status_text')} task:{res_msg.get('task')}")
+					elif 'citrixdefault' in res_idx:
+						if res_msg.get('blacklisted') and res_msg.get("blksource") != 'samskipexternal' and res_msg.get("blksource") != 'citrix_tcp_srcblacklisted':
+							blk_text = f'{Fore.RED} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
+						elif res_msg.get('blacklisted') and res_msg.get("blksource") == 'samskipexternal' or res_msg.get("blksource") != 'citrix_tcp_srcblacklisted':
+							blk_text = f'{Fore.GREEN} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
+						else:
+							blk_text = f'{Fore.YELLOW} blacklisted {res_msg.get("blacklisted")} '
+						print(f"\t{Fore.YELLOW}{Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} module:{res_msg.get('module')} ClientIP:{res_msg.get('ClientIP')} SourceAddress:{res_msg.get('SourceAddress')} method:{res_msg.get('method')} {Fore.CYAN} nsmodule:{res_msg.get('nsmodule')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} hostname: {res_msg.get('hostname')} ")
+					else:
+						print(f"\t{Fore.YELLOW}{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
+		if "msg" in df.columns and "srcip" in df.columns:
+			print(f"{Fore.LIGHTBLUE_EX}top 15 actions by srcip:")
+			try:
+				print(df.groupby(["action", "msg", "srcip"])["msg"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
+			except KeyError as e:
+				logger.error(f"KeyError: {e} - check graylog data structure. {df.columns}")
+
+			print(f"{Fore.LIGHTBLUE_EX}top 15 actions by dstip:")
+			try:
+				print(df.groupby(["action", "msg", "dstip"])["msg"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
+			except KeyError as e:
+				logger.error(f"KeyError: {e} - check graylog data structure. {df.columns}")
+
+			print(f"{Fore.LIGHTBLUE_EX}top 15 actions by type and ip:")
+			print(df.groupby(["action", "type", "subtype", "srcip", "dstip"])["timestamp"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
+			print(df.groupby(["action", "srcip"])["srcip"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
+		if "citrixtype" in df.columns or "request" in df.columns:
+			print(f"{Fore.LIGHTBLUE_EX}Citrix data found - processing citrixtype column")
+			# print(df.groupby(['action', 'srcip'])['srcip'].agg(['count']).sort_values(by='count', ascending=False).head(15))
+		if "msg" in df.columns and "remip" in df.columns:
+			print(f"{Fore.LIGHTBLUE_EX}top 15 actions by remip:")
+			try:
+				print(df.groupby(["action", "msg", "remip", "username"])["msg"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
+			except KeyError as e:
+				logger.error(f"KeyError: {e} - check graylog data structure. {df.columns}")
 
 if __name__ == '__main__':
 	pass
