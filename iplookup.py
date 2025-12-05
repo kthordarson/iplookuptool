@@ -32,6 +32,7 @@ urllib3.disable_warnings()
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
 	parser.add_argument("-ip", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
+	parser.add_argument("-ipfile", help="filename containing ipaddresses/hosts to lookup", type=str, metavar="filename")
 	parser.add_argument("-ips", help="list of ipaddress/host to lookup", type=list, default=[], metavar="ipaddrlist", nargs='+')
 	parser.add_argument("--url", help="url to lookup", type=str, metavar="url")
 	parser.add_argument("--vturl", help="virustotal url lookup", type=str)
@@ -81,6 +82,16 @@ def get_args():
 
 
 async def main(args):
+	if args.ipfile:
+		try:
+			with open(args.ipfile, 'r') as f:
+				file_ips = [line.strip() for line in f if line.strip() if line.count('.') == 3]
+				args.ips.extend(file_ips)
+			if args.debug:
+				logger.debug(f"loaded {len(file_ips)} ipaddresses from {args.ipfile}")
+		except Exception as e:
+			logger.error(f"error reading ipfile {args.ipfile}: {e} {type(e)}")
+			return
 	if args.all:
 		args.crowdsec = True
 		args.ipwhois = True
@@ -116,12 +127,16 @@ async def main(args):
 		args.crowdsec = False
 	if args.skip_ip2location:
 		args.ip2location = False
-	if not args.ips:
+
+	for ip in args.ips:
 		try:
-			args.ipaddress = ip_address(args.ip).exploded
+			ipaddress = ip_address(ip).exploded
 		except ValueError as e:
-			logger.warning(f"[!] {e} {type(e)} for address {args.ip}")
-			return
+			logger.warning(f"[!] {e} {type(e)} for address {ip}")
+			raise e
+		except Exception as e:
+			logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
+			raise e
 
 	if args.ipinfoio:
 		# ipinfo.io lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
