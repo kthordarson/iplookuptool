@@ -52,21 +52,7 @@ async def get_virustotal_urlinfo(vturl):
 			return data0
 
 async def get_virustotal_objects(ipaddr, limit=10, relation='comments'):
-	# Relationship	Description	Accessibility	Return object type
-	# comments	Comments for the IP address.	Everyone.	List of Comments.
-	# communicating_files	Files that communicate with the IP address.	Everyone.	List of Files.
-	# downloaded_files	Files downloaded from the IP address.	VT Enterprise users only.	List of Files.
-	# graphs	Graphs including the IP address.	Everyone.	List of Graphs.
-	# historical_ssl_certificates	SSL certificates associated with the IP.	Everyone.	List of SSL Certificate.
-	# historical_whois	WHOIS information for the IP address.	Everyone.	List of Whois.
-	# related_comments	Community posted comments in the IP's related objects.	Everyone.	List of Comments.
-	# related_references	References related to the IP address.	VT Enterprise users only.	List of References.
-	# related_threat_actors	Threat actors related to the IP address.	VT Enterprise users only.	List of Threat Actors.
-	# referrer_files	Files containing the IP address.	Everyone.	List of Files.
-	# resolutions	IP address' resolutions	Everyone.	List of Resolutions.
-	# urls	URLs related to the IP address.	VT Enterprise users only.	List of URLs.
 	url = f"https://www.virustotal.com/api/v3/ip_addresses/{ipaddr}/{relation}?limit={limit}"
-	# url = f"https://www.virustotal.com/api/v3/ip_addresses/173.233.137.44/comments?limit=10"
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY}
 	async with aiohttp.ClientSession() as session:
 		async with session.get(url, headers=headers) as response:
@@ -80,8 +66,7 @@ async def get_vt_ipinfo(args):
 			vtipinfo = await client.get_object_async(f'/ip_addresses/{args.ip}')
 	except Exception as e:
 		logger.error(f'[!] unhandled {e} {type(e)} addr: {args.ip}')
-	finally:
-		return vtipinfo
+	return vtipinfo
 
 async def do_vt_search(ipaddr, limit=10):
 	async with Client(VTAPIKEY) as client:

@@ -27,10 +27,10 @@ urllib3.disable_warnings()
 # add https://cleantalk.org/blacklists/34.149.87.45
 # add https://www.netify.ai/resources/ips/34.149.87.45
 # add https://www.criminalip.io/asset/report/34.149.87.45
-# todo check
-# https://cleantalk.org
-# https://www.malwareurl.com
-# https://urlhaus.abuse.ch/api/
+# add https://viewdns.info/
+# add https://cleantalk.org
+# add https://www.malwareurl.com
+# add https://urlhaus.abuse.ch/api/
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
@@ -161,7 +161,6 @@ async def main(args):
 				print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
 			else:
 				logger.warning(f"no ipinfo.io data for {args.ip}")
-
 
 	if args.ip2location:
 		# ip2location lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
