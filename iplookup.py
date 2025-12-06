@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import traceback
 import asyncio
-import pandas as pd
 import os
 import argparse
 import json
@@ -13,7 +12,7 @@ from myglapi.rest import ApiException
 from modules.virustotal import (get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo)
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
-from modules.graylog import graylog_search, graylog_search_ip, print_graylog_summary
+from modules.graylog import graylog_search, graylog_search_ip, print_graylog_summary, print_graylog_data
 from modules.defender import (get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url)
 from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
 from modules.ip2loc import get_ip2loc_data
@@ -24,6 +23,10 @@ import urllib3
 
 urllib3.disable_warnings()
 
+# todo
+# add https://cleantalk.org/blacklists/34.149.87.45
+# add https://www.netify.ai/resources/ips/34.149.87.45
+# add https://www.criminalip.io/asset/report/34.149.87.45
 # todo check
 # https://cleantalk.org
 # https://www.malwareurl.com
@@ -31,7 +34,9 @@ urllib3.disable_warnings()
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
-	parser.add_argument("-ip", "--host", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
+	parser.add_argument("-ip", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
+	parser.add_argument("-ipfile", help="filename containing ipaddresses/hosts to lookup", type=str, metavar="filename")
+	parser.add_argument("-ips", help="list of ipaddress/host to lookup", type=list, default=[], metavar="ipaddrlist", nargs='+')
 	parser.add_argument("--url", help="url to lookup", type=str, metavar="url")
 	parser.add_argument("--vturl", help="virustotal url lookup", type=str)
 
@@ -80,6 +85,16 @@ def get_args():
 
 
 async def main(args):
+	if args.ipfile:
+		try:
+			with open(args.ipfile, 'r') as f:
+				file_ips = [line.strip() for line in f if line.strip() if line.count('.') == 3]
+				args.ips.extend(file_ips)
+			if args.debug:
+				logger.debug(f"loaded {len(file_ips)} ipaddresses from {args.ipfile}")
+		except Exception as e:
+			logger.error(f"error reading ipfile {args.ipfile}: {e} {type(e)}")
+			return
 	if args.all:
 		args.crowdsec = True
 		args.ipwhois = True
@@ -115,31 +130,59 @@ async def main(args):
 		args.crowdsec = False
 	if args.skip_ip2location:
 		args.ip2location = False
-	try:
-		args.ipaddress = ip_address(args.host).exploded
-	except ValueError as e:
-		logger.warning(f"[!] {e} {type(e)} for address {args.host}")
-		return
+
+	for ip in args.ips:
+		try:
+			ipaddress = ip_address(ip).exploded
+		except ValueError as e:
+			logger.warning(f"[!] {e} {type(e)} for address {ip}")
+			raise e
+		except Exception as e:
+			logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
+			raise e
 
 	if args.ipinfoio:
-		# ipinfo.io lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
-		if args.debug:
-			logger.debug(f"ipinfo.io lookup for {args.host} ipaddress: {args.ipaddress}")
-		ipinfodata = await get_ipinfo(args)
-		if ipinfodata:
-			print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
-		else:
-			logger.warning(f"no ipinfo.io data for {args.host} ipaddress: {args.ipaddress}")
+		# ipinfo.io lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
+		if args.ips:
+			for ipaddr in args.ips:
+				args.ip = ''.join(ipaddr)
+				if args.debug:
+					logger.debug(f"ipinfo.io lookup for {args.ip}")
+				ipinfodata = await get_ipinfo(args)
+				if ipinfodata:
+					print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
+				else:
+					logger.warning(f"no ipinfo.io data for {args.ip}")
+		elif args.ip:
+			if args.debug:
+				logger.debug(f"ipinfo.io lookup for {args.ip}")
+			ipinfodata = await get_ipinfo(args)
+			if ipinfodata:
+				print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
+			else:
+				logger.warning(f"no ipinfo.io data for {args.ip}")
+
 
 	if args.ip2location:
-		# ip2location lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
-		if args.debug:
-			logger.debug(f"ip2location lookup for {args.host} ipaddress: {args.ipaddress}")
-		ip2locdata = await get_ip2loc_data(args)
-		if ip2locdata:
-			print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
-		else:
-			logger.warning(f"no ip2location data for {args.host} ipaddress: {args.ipaddress}")
+		# ip2location lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
+		if args.ips:
+			for ipaddr in args.ips:
+				args.ip = ''.join(ipaddr)
+			if args.debug:
+				logger.debug(f"ip2location lookup for {args.ip}")
+			ip2locdata = await get_ip2loc_data(args)
+			if ip2locdata:
+				print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
+			else:
+				logger.warning(f"no ip2location data for {args.ip}")
+		elif args.ip:
+			if args.debug:
+				logger.debug(f"ip2location lookup for {args.ip}")
+			ip2locdata = await get_ip2loc_data(args)
+			if ip2locdata:
+				print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
+			else:
+				logger.warning(f"no ip2location data for {args.ip}")
 	if args.url:
 		# search logs for remoteurl
 		infourl = await get_virustotal_scanurls(args.url)
@@ -167,13 +210,13 @@ async def main(args):
 
 	if args.urlscanio:
 		try:
-			urlscandata = await search_urlscanio(args.host)
+			urlscandata = await search_urlscanio(args.ip)
 			if urlscandata:
 				print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
 				# for res in urlscandata.get("results"):
 				# 	print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
 			else:
-				logger.warning(f"no urlscanio data for {args.host} urlscandata: {urlscandata}")
+				logger.warning(f"no urlscanio data for {args.ip} urlscandata: {urlscandata}")
 		except Exception as e:
 			logger.error(f"unhandled {type(e)} {e}")
 
@@ -187,38 +230,45 @@ async def main(args):
 			if vt_url_resultdata.get(vendor).get("category") == "malicious":
 				print(f"{Fore.BLUE}Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
 
-	if args.ipwhois and args.ipaddress:
-		# ipwhois lookup for {Fore.CYAN}{args.host} ipaddress: {ipaddress}')
-		ipaddress = ip_address(args.host)
+	if args.ipwhois and args.ip:
+		# ipwhois lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
+		ipaddress = ip_address(args.ip)
 		if ipaddress.is_global:
-			whois_info = await get_ipwhois(args)
-			print(f"{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}")
+			try:
+				whois_info = await get_ipwhois(args)
+				print(f"{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}")
+			except Exception as e:
+				logger.error(f"ipwhois error: {e} {type(e)} for {args.ip}")
 		elif ipaddress.is_private:
 			print(f"{Fore.YELLOW}private address: {ipaddress}")
 
 	if args.virustotal:
 		vtinfo = {}
-		vtinfo = await get_vt_ipinfo(args)
-		if vtinfo:
-			last_analysis_stats = vtinfo.get("last_analysis_stats", {})
-			last_analysis_results = vtinfo.get("last_analysis_results", {})
-			as_owner = vtinfo.get("as_owner", "None")
-			# vt_aso = vtinfo.as_owner
-			total_votes = vtinfo.get("total_votes", {})
-			suspicious = last_analysis_stats.get('suspicious')  # type: ignore
-			malicious = last_analysis_stats.get('malicious')  # type: ignore
-			malicious += int(total_votes.get("malicious", 0))
-			if malicious+suspicious > 0:
-				vtforecolor = Fore.RED
-			else:
-				vtforecolor = Fore.GREEN
-			print(f"{Fore.LIGHTBLUE_EX}vt\t{args.host} as_owner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
-			for vendor in last_analysis_results:  # type: ignore
-				if last_analysis_results.get(vendor).get("category") in ('suspicious', "malicious"):  # type: ignore
-					print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result: {last_analysis_results.get(vendor).get('result')} {last_analysis_results.get(vendor).get('method')} ")  # type: ignore
+		for ipaddr in args.ips:
+			args.ip = ''.join(ipaddr)
+			vtinfo = await get_vt_ipinfo(args)
+			if vtinfo:
+				last_analysis_stats = vtinfo.get("last_analysis_stats", {})
+				last_analysis_results = vtinfo.get("last_analysis_results", {})
+				as_owner = vtinfo.get("as_owner", "None")
+				# vt_aso = vtinfo.as_owner
+				total_votes = vtinfo.get("total_votes", {})
+				# as_owner = {}
+				total_votes = {}
+				suspicious = last_analysis_stats.get('suspicious')  # type: ignore
+				malicious = last_analysis_stats.get('malicious')  # type: ignore
+				malicious += int(total_votes.get("malicious", 0))
+				if malicious+suspicious > 0:
+					vtforecolor = Fore.RED
+				else:
+					vtforecolor = Fore.GREEN
+				print(f"{Fore.LIGHTBLUE_EX}vt\t{args.ip} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
+				for vendor in last_analysis_results:  # type: ignore
+					if last_analysis_results.get(vendor).get("category") in ('suspicious', "malicious"):  # type: ignore
+						print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result: {last_analysis_results.get(vendor).get('result')} {last_analysis_results.get(vendor).get('method')} ")  # type: ignore
 
 	if args.abuseipdb:
-		abuseipdbdata = await get_abuseipdb_data(args.host)
+		abuseipdbdata = await get_abuseipdb_data(args.ip)
 		if abuseipdbdata:
 			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 
@@ -228,143 +278,33 @@ async def main(args):
 			print(f'{Fore.LIGHTBLUE_EX}crowdsec Reports:{Fore.CYAN} {crowdsecdata.get("reputation")} confidence: {crowdsecdata.get("confidence")}')
 
 	if args.graylog:
-		try:
-			if args.debug:
-				logger.debug(f"searching graylog for {args.host}")
-			results = await graylog_search_ip(args, range=86400)
-		except ApiException as e:
-			logger.warning(f"graylog search error: {e}")
-			results = None
-		except TypeError as e:
-			logger.error(f"graylog search error: {e} {type(e)}")
-			if args.debug:
-				logger.error(traceback.format_exc())
-			results = None
-		except Exception as e:
-			logger.error(f"graylog search error: {e} {type(e)}")
-			results = None
-		if results:
-			print_graylog_summary(results)
-			df = pd.DataFrame([k["_source"] for k in results.get("hits").get("hits")])
-			# Additional detailed analysis
-			if results.get("hits").get("total").get("value") > 0:
-				# Citrix specific analysis
-				if "citrixtype" in df.columns or "type" in df.columns:
-					if "citrixtype" in df.columns or (df["type"] == "citrixtype").any():
-						print(f"{Fore.LIGHTBLUE_EX}Citrix NetScaler Data Analysis:")
-
-						# Analyze traffic patterns
-						if "Total_bytes_recv" in df.columns and "Total_bytes_send" in df.columns:
-							total_recv = df["Total_bytes_recv"].sum()
-							total_sent = df["Total_bytes_send"].sum()
-							print(f"  {Fore.CYAN}Total Traffic - Received: {Fore.YELLOW}{total_recv:,} bytes {Fore.CYAN}Sent: {Fore.YELLOW}{total_sent:,} bytes")
-
-						# Top destinations
-						if "Destination" in df.columns:
-							top_destinations = df["Destination"].value_counts().head(10)
-							print(f"  {Fore.CYAN}Top Destinations:")
-							for dest, count in top_destinations.items():
-								print(f"    {Fore.YELLOW}{dest}: {count}")
-
-						# Virtual server analysis
-						if "Vserver" in df.columns:
-							vservers = df["Vserver"].value_counts().head(5)
-							print(f"  {Fore.CYAN}Virtual Servers:")
-							for vserver, count in vservers.items():
-								print(f"    {Fore.YELLOW}{vserver}: {count}")
-
-						# Source and destination address patterns
-						if "SourceAddress" in df.columns and "DestinationAddress" in df.columns:
-							unique_sources = df["SourceAddress"].nunique()
-							unique_dests = df["DestinationAddress"].nunique()
-							print(f"  {Fore.CYAN}Connection Diversity - Unique Sources: {Fore.YELLOW}{unique_sources} {Fore.CYAN}Unique Destinations: {Fore.YELLOW}{unique_dests}")
-
-				# Time-based analysis
-				if "timestamp" in df.columns:
-					df["hour"] = pd.to_datetime(df["timestamp"]).dt.hour
-					hourly_activity = df["hour"].value_counts().sort_index()
-					print(f"  {Fore.CYAN}Hourly Activity Distribution:")
-					for hour, count in hourly_activity.head(10).items():
-						print(f"    {Fore.YELLOW}Hour {hour:02d}: {count} events")
-
-				print(f"{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}")
-				# for res in results.get("hits").get("hits")[: args.maxoutput]:
-				index_list = list(set([k.get('_index') for k in results.get("hits").get("hits")]))
-				# index_temp_name_list = list(set([k.split('_')[0] for k in index_list]))
-				# index_temp_idx_list = list(set([k.split('_')[1] for k in index_list]))
-				# indextmp = [{'idxname':k.split('_')[0],'idxnum':k.split('_')[1]} for k in index_list]
-				for index_name in index_list:
-					index_hits = [k for k in results.get("hits").get("hits") if k['_index'] == index_name]
-					print(f"{Fore.LIGHTGREEN_EX}{index_name} hits: {Fore.CYAN}{len(index_hits)} {Fore.RESET} ")
-					# for idx,res in enumerate(results.get("hits").get("hits")):
-					for idx,res in enumerate(index_hits):
-						res_idx = res.get("_index")
-						res_msg = res.get("_source")
-						if idx >= args.maxoutput:
-							if args.debug:
-								logger.info(f"graylog max {idx} output {args.maxoutput} reached for index {index_name}")
-								# logger.debug(f'res_msgkeys: {res_msg.keys()} ')
-							break
-						if res_idx != index_name:
-							if args.debug:
-								logger.warning(f"{res_idx} != {index_name}  - skipping")
-							break
-						elif res_idx == index_name:
-							if 'fgutm' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
-							if 'fortitraffic' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} dstport:{res_msg.get('dstport')}  tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')}")
-							elif 'fgvpn' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} {Fore.CYAN} action:{res_msg.get('action')} remip:{res_msg.get('remip')}  msg: {res_msg.get('msg')} blk:{res_msg.get('blacklisted')} blksource: {res_msg.get('blksource')} ")
-							elif 'cerberusftp' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} ftp_action:{res_msg.get('ftp_action')} ftp_user:{res_msg.get('ftp_user')} {Fore.CYAN} client_ipaddress:{res_msg.get('client_ipaddress')}")
-							elif "azsignin" in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} res:{Fore.LIGHTBLUE_EX}{res_msg.get('ResultSignature')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
-							elif 'azaudit' in res_idx:
-								print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} ActivityDisplayName:{Fore.LIGHTBLUE_EX}{res_msg.get('ActivityDisplayName')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')} ResultSignature: {res_msg.get('ResultSignature')}")
-							elif "msgraph" in res_idx:
-								print(f"\t{Fore.CYAN}{res_msg.get('gl2_receive_timestamp')} {Fore.BLUE}method: {Fore.LIGHTBLUE_EX}{res_msg.get('RequestMethod')} dispname:{res_msg.get('displayName')} ip:{res_msg.get('IpAddress')} dstip:{res_msg.get('dstip')} {res_msg.get('RequestUri')}")
-							elif "securityaudit" in res_idx:
-								print(f"\t{Fore.CYAN}{res_msg.get('gl2_receive_timestamp')} user:{Fore.LIGHTBLUE_EX}{res_msg.get('username')} computer:{Fore.LIGHTGREEN_EX}{res_msg.get('computer_name')} {Fore.BLUE}event_id: {Fore.LIGHTBLUE_EX}{res_msg.get('event_id')} {res_msg.get('event_outcome')} {res_msg.get('IpAddress')} {res_msg.get('event_status_text')} task:{res_msg.get('task')}")
-							elif 'citrix' in res_idx:
-								if res_msg.get('blacklisted') and res_msg.get("blksource") != 'samskipexternal':
-									blk_text = f'{Fore.RED} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
-								elif res_msg.get('blacklisted') and res_msg.get("blksource") == 'samskipexternal':
-									blk_text = f'{Fore.GREEN} blacklisted {res_msg.get("blacklisted")} {res_msg.get("blksource")}'
-								else:
-									blk_text = f'{Fore.YELLOW} blacklisted {res_msg.get("blacklisted")} '
-								print(f"\t{Fore.YELLOW}{Fore.BLUE}ts:{res_msg.get('timestamp')} {blk_text} {Fore.BLUE} type: {res_msg.get('type')} module:{res_msg.get('module')} ClientIP:{res_msg.get('ClientIP')} SourceAddress:{res_msg.get('SourceAddress')} method:{res_msg.get('method')} {Fore.CYAN} nsmodule:{res_msg.get('nsmodule')} src:{res_msg.get('src')} url:{res_msg.get('url')} dst: {res_msg.get('dst')} hostname: {res_msg.get('hostname')} ")
-							else:
-								print(f"\t{Fore.YELLOW}{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} srcname:{res_msg.get('srcname')}")
-				if "msg" in df.columns and "srcip" in df.columns:
-					print(f"{Fore.LIGHTBLUE_EX}top 15 actions by srcip:")
-					try:
-						print(df.groupby(["action", "msg", "srcip"])["msg"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
-					except KeyError as e:
-						logger.error(f"KeyError: {e} - check graylog data structure. {df.columns}")
-
-					print(f"{Fore.LIGHTBLUE_EX}top 15 actions by dstip:")
-					try:
-						print(df.groupby(["action", "msg", "dstip"])["msg"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
-					except KeyError as e:
-						logger.error(f"KeyError: {e} - check graylog data structure. {df.columns}")
-
-					print(f"{Fore.LIGHTBLUE_EX}top 15 actions by type and ip:")
-					print(df.groupby(["action", "type", "subtype", "srcip", "dstip"])["timestamp"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
-					print(df.groupby(["action", "srcip"])["srcip"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
-				if "citrixtype" in df.columns or "request" in df.columns:
-					print(f"{Fore.LIGHTBLUE_EX}Citrix data found - processing citrixtype column")
-					# print(df.groupby(['action', 'srcip'])['srcip'].agg(['count']).sort_values(by='count', ascending=False).head(15))
-				if "msg" in df.columns and "remip" in df.columns:
-					print(f"{Fore.LIGHTBLUE_EX}top 15 actions by remip:")
-					try:
-						print(df.groupby(["action", "msg", "remip", "username"])["msg"].agg(["count"]).sort_values(by="count", ascending=False).head(15))
-					except KeyError as e:
-						logger.error(f"KeyError: {e} - check graylog data structure. {df.columns}")
-			else:
-				print(f"{Fore.YELLOW}no graylog data ({results.get('hits').get('total').get('value')}) for {Fore.GREEN}{args.host}{Style.RESET_ALL}")
-		else:
-			print(f"{Fore.YELLOW}no graylog results for {Fore.GREEN}{args.host}{Style.RESET_ALL}")
+		if args.ips:
+			for ipaddr in args.ips:
+				args.ip = ''.join(ipaddr)
+				if args.debug:
+					logger.debug(f"searching graylog for {args.ip}")
+				results = await graylog_search_ip(args, range=86400)
+				if results:
+					print_graylog_summary(results)
+					print_graylog_data(results, args)
+		elif args.ip:
+			try:
+				if args.debug:
+					logger.debug(f"searching graylog for {args.ip}")
+				results = await graylog_search_ip(args, range=86400)
+			except ApiException as e:
+				logger.warning(f"graylog search error: {e}")
+				results = None
+			except TypeError as e:
+				logger.error(f"graylog search error: {e} {type(e)}")
+				if args.debug:
+					logger.error(traceback.format_exc())
+				results = None
+			except Exception as e:
+				logger.error(f"graylog search error: {e} {type(e)}")
+				results = None
+			if results:
+				print_graylog_summary(results)
 
 	if args.sslvpnloginfail and args.graylog:
 		searchquery = "action:ssl-login-fail"
@@ -410,7 +350,7 @@ async def main(args):
 				azuredata_f = await get_azure_signinlogs_failed(args)
 				if args.debug:
 					logger.debug(f"azure failed signin logs returned {len(azuredata_f)} ... searching graylog for {addr}")
-				args.host = addr
+				args.ip = addr
 				glres = await graylog_search_ip(args, range=86400)
 				if args.debug:
 					logger.debug(f'graylog search returned {glres.get("hits").get("total").get("value")} results for {addr}')  # type: ignore
@@ -451,7 +391,7 @@ async def main(args):
 			except TokenException as e:
 				logger.error(f"TokenException: {e} {type(e)}")
 				return
-			indicators = await get_indicators(token, args.host)
+			indicators = await get_indicators(token, args.ip)
 			for addr in ipaddres_set:
 				print(f"{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}")
 				[print(f"{Fore.CYAN}   indicator for {addr} found: {k}") for k in indicators if addr in str(k.values())]  # type: ignore
@@ -471,7 +411,7 @@ async def main(args):
 					azuredata = []
 					azuredata_f = []
 				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				args.host = addr
+				args.ip = addr
 				glres = await graylog_search_ip(args, range=86400)
 				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
 				if glres.get("hits").get("total").get("value") > 0:  # type: ignore
@@ -500,12 +440,12 @@ async def main(args):
 		try:
 			azuredata = await get_azure_signinlogs(args)
 		except Exception as e:
-			logger.error(f"azure logs error: {e} {type(e)} for {args.host}")
+			logger.error(f"azure logs error: {e} {type(e)} for {args.ip}")
 			azuredata = []
 			if args.debug:
 				logger.error(traceback.format_exc())
 		# if args.debug:
-		# 	logger.debug(f"azure signinlogs for {args.host} {len(azuredata)} ")
+		# 	logger.debug(f"azure signinlogs for {args.ip} {len(azuredata)} ")
 		if len(azuredata) >= 1:
 			print(f"{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(azuredata)}")
 			if len(azuredata) > 0:
@@ -514,7 +454,7 @@ async def main(args):
 					status = json.loads(logentry.get("Status"))  # type: ignore
 					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} AppDisplayName: {logentry.get('AppDisplayName')} mfa: {logentry.get('MfaDetail')} riskdetail: {logentry.get('RiskDetail')} resourcedisplayname: {logentry.get('ResourceDisplayName')} authenticationrequirement: {logentry.get('AuthenticationRequirement')}")  # type: ignore
 			else:
-				print(f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.host}{Style.RESET_ALL}")
+				print(f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
 
 	if args.defender:
 		try:
@@ -529,21 +469,21 @@ async def main(args):
 			token = None
 		if token:
 			try:
-				indicators = await get_indicators(token, args.host)
+				indicators = await get_indicators(token, args.ip)
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)
-			# if len([k for k in indicators if k.get('indicatorValue') == args.host]) <= 1:
-			if len([k for k in indicators if args.host in str(k.values())]) >= 1:  # type: ignore
-				indx = [k for k in indicators if k.get("indicatorValue") == args.host]  # type: ignore
+			# if len([k for k in indicators if k.get('indicatorValue') == args.ip]) <= 1:
+			if len([k for k in indicators if args.ip in str(k.values())]) >= 1:  # type: ignore
+				indx = [k for k in indicators if k.get("indicatorValue") == args.ip]  # type: ignore
 				for ind in indx:
 					print(f'{Fore.RED}indicator found: {Fore.GREEN} {ind.get("title")} {ind.get("description")} {Fore.LIGHTBLUE_EX}type: {ind.get("indicatorType")} action: {ind.get("action")} {Fore.LIGHTGREEN_EX} created by: {ind.get("createdBy")}')
 			else:
-				print(f"{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.host}{Style.RESET_ALL}")
+				print(f"{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
 			try:
 				maxdays = 1
 				limit = 100
-				query = f"""let ip = "{args.host}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+				query = f"""let ip = "{args.ip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
 				defenderdata = await search_devicenetworkevents(token, query)
 				if len(defenderdata.get("Results")) >= 1:
 					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
@@ -551,7 +491,7 @@ async def main(args):
 					for res in results[: args.maxoutput]:
 						print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 				else:
-					print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.host}{Style.RESET_ALL}")
+					print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
 			except (DefenderException, TokenException) as e:
 				logger.error(e)
 				os._exit(-1)

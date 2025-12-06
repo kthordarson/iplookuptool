@@ -15,7 +15,7 @@ except ImportError as e:
 	os._exit(-1)
 
 async def get_virustotal_info(args):
-	url = f"https://www.virustotal.com/api/v3/ip_addresses/{args.ipaddress}"
+	url = f"https://www.virustotal.com/api/v3/ip_addresses/{args.ip}"
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY}
 	try:
 		async with aiohttp.ClientSession() as session:
@@ -23,7 +23,7 @@ async def get_virustotal_info(args):
 				jsonresults = await response.json()
 				return jsonresults['data']['attributes']
 	except Exception as e:
-		logger.error(f'[!] {e} {type(e)} addr: {args.ipaddress}')
+		logger.error(f'[!] {e} {type(e)} addr: {args.ip}')
 		return None
 
 async def get_virustotal_comments(ipaddr, limit=10):
@@ -77,10 +77,11 @@ async def get_vt_ipinfo(args):
 	vtipinfo = {}
 	try:
 		async with Client(VTAPIKEY) as client:
-			vtipinfo = await client.get_object_async(f'/ip_addresses/{args.host}')
+			vtipinfo = await client.get_object_async(f'/ip_addresses/{args.ip}')
 	except Exception as e:
-		logger.error(f'[!] unhandled {e} {type(e)} addr: {args.host}')
-	return vtipinfo
+		logger.error(f'[!] unhandled {e} {type(e)} addr: {args.ip}')
+	finally:
+		return vtipinfo
 
 async def do_vt_search(ipaddr, limit=10):
 	async with Client(VTAPIKEY) as client:

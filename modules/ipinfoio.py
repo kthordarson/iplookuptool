@@ -15,10 +15,10 @@ async def get_ipinfo(args):
 	api_key = os.environ.get("IPINFOIO_APIKEY")
 	if not api_key:
 		logger.warning("missing ipinfo.io api key")
-		url = f"https://ipinfo.io/{args.ipaddress}/json"
+		url = f"https://ipinfo.io/{args.ip}/json"
 	else:
 		# todo add api key to the url
-		url = f"https://ipinfo.io/{args.ipaddress}/json"
+		url = f"https://ipinfo.io/{args.ip}/json"
 	try:
 		async with aiohttp.ClientSession() as session:
 			async with session.get(url) as response:
@@ -26,8 +26,8 @@ async def get_ipinfo(args):
 					data = await response.json()
 					return data
 				else:
-					logger.error(f"ipinfo error: {response.status} {response.reason} for {args.ipaddress}")
+					logger.error(f"ipinfo error: {response.status} {response.reason} for {args.ip}")
 					return None
 	except Exception as e:
-		logger.error(f"ipinfo exception: {e} {type(e)} for {args.ipaddress}")
+		logger.error(f"ipinfo exception: {e} {type(e)} for {args.ip}")
 		return None

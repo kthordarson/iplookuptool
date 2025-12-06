@@ -16,7 +16,7 @@ async def get_azure_signinlogs(args, resulttype=0):
         key_value = []
         async with DefaultAzureCredential() as creds:
             async with LogsQueryClient(creds) as logclient:
-                query = f'SigninLogs | where IPAddress == "{args.ipaddress}" | take 100'
+                query = f'SigninLogs | where IPAddress == "{args.ip}" | take 100'
                 logs_resource_id = os.getenv('AZURE_LOGRESOURCE_ID')
                 response = await logclient.query_resource(logs_resource_id, query, timespan=timedelta(days=1))  # type: ignore
                 if response.status == LogsQueryStatus.PARTIAL:
@@ -36,7 +36,7 @@ async def get_azure_signinlogs(args, resulttype=0):
                     logger.error(f'Unexpected response status: {response.status}')
                     return []
     except Exception as e:
-        logger.error(f"azure logs exception: {e} {type(e)} for {args.ipaddress}")
+        logger.error(f"azure logs exception: {e} {type(e)} for {args.ip}")
         if args.debug:
             logger.error(traceback.format_exc())
         return []
@@ -48,7 +48,7 @@ async def get_azure_signinlogs_failed(args):
     key_value = []
     async with DefaultAzureCredential() as creds:
         async with LogsQueryClient(creds) as logclient:
-            query = f'SigninLogs | where IPAddress == "{args.ipaddress}" | where ResultType != "0" | take 100'
+            query = f'SigninLogs | where IPAddress == "{args.ip}" | where ResultType != "0" | take 100'
             logs_resource_id = os.getenv('AZURE_LOGRESOURCE_ID')
             response = await logclient.query_resource(logs_resource_id, query, timespan=timedelta(days=1))  # type: ignore
             if response.status == LogsQueryStatus.PARTIAL:
