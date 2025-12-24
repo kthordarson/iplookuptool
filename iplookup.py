@@ -31,6 +31,7 @@ urllib3.disable_warnings()
 # add https://cleantalk.org
 # add https://www.malwareurl.com
 # add https://urlhaus.abuse.ch/api/
+# add https://dnsdumpster.com/
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
