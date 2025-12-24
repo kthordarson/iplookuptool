@@ -12,13 +12,13 @@ async def xxxget_urlscanio_data(args):
 	pass
 
 async def search_urlscanio(remoteurl):
-	urlscanapikey = os.environ.get("URLSCANIOAPIKEY")
-	if not urlscanapikey:
+	URLSCANIOAPIKEY = os.environ.get("URLSCANIOAPIKEY")
+	if not URLSCANIOAPIKEY:
 		logger.warning("missing urlscan.io api key")
 		return None
 	headers = {
 		'Authorization': 'Basic',
-		'API-Key': urlscanapikey}
+		'API-Key': URLSCANIOAPIKEY}
 	params = {
 		'q': remoteurl,
 			}

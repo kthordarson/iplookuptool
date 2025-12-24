@@ -63,6 +63,7 @@ def get_args():
 	parser.add_argument("--skip_crowdsec", help="skip crowdsec lookup", action="store_true", default=False, dest="skip_crowdsec")
 
 	parser.add_argument("-us", "--urlscanio", help="urlscanio lookup", action="store_true", default=False, dest="urlscanio")
+	parser.add_argument("--dumpurlscandata", help="dump urlscan data", action="store_true", default=False, dest="dumpurlscandata")
 	parser.add_argument("--skip_urlscanio", help="skip urlscanio lookup", action="store_true", default=False, dest="skip_urlscanio")
 
 	parser.add_argument("--graylog", help="search in graylog", action="store_true", default=False, dest="graylog")
@@ -91,10 +92,30 @@ async def main(args):
 			with open(args.ipfile, 'r') as f:
 				file_ips = [line.strip() for line in f if line.strip() if line.count('.') == 3]
 				args.ips.extend(file_ips)
-			if args.debug:
-				logger.debug(f"loaded {len(file_ips)} ipaddresses from {args.ipfile}")
+			for ip in args.ips:
+				try:
+					ipaddress = ip_address(ip).exploded
+				except ValueError as e:
+					logger.warning(f"[!] {e} {type(e)} for address {ip}")
+					raise e
+				except Exception as e:
+					logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
+					raise e
+				if args.debug:
+					logger.debug(f"loaded {len(file_ips)} ipaddresses from {args.ipfile}")
 		except Exception as e:
 			logger.error(f"error reading ipfile {args.ipfile}: {e} {type(e)}")
+			return
+	elif args.ip:
+		try:
+			ipaddress = ip_address(args.ip).exploded
+			args.ip = ipaddress
+			args.ips.append(ipaddress)
+		except ValueError as e:
+			logger.warning(f"[!] {e} {type(e)} for address {args.ip}")
+			return
+		except Exception as e:
+			logger.error(f"[!] unhandled {e} {type(e)} for address {args.ip}")
 			return
 	if args.all:
 		args.crowdsec = True
@@ -131,16 +152,6 @@ async def main(args):
 		args.crowdsec = False
 	if args.skip_ip2location:
 		args.ip2location = False
-
-	for ip in args.ips:
-		try:
-			ipaddress = ip_address(ip).exploded
-		except ValueError as e:
-			logger.warning(f"[!] {e} {type(e)} for address {ip}")
-			raise e
-		except Exception as e:
-			logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
-			raise e
 
 	if args.ipinfoio:
 		# ipinfo.io lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
@@ -211,10 +222,11 @@ async def main(args):
 	if args.urlscanio:
 		try:
 			urlscandata = await search_urlscanio(args.ip)
-			if urlscandata:
-				print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.YELLOW} {urlscandata.get("total")} ')
-				# for res in urlscandata.get("results"):
-				# 	print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
+			if urlscandata and urlscandata.get("total") > 0:
+				print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.RED} {urlscandata.get("total")} ')
+				if args.dumpurlscandata:
+					for res in urlscandata.get("results"):
+						print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
 			else:
 				logger.warning(f"no urlscanio data for {args.ip} urlscandata: {urlscandata}")
 		except Exception as e:
@@ -246,6 +258,8 @@ async def main(args):
 		vtinfo = {}
 		for ipaddr in args.ips:
 			args.ip = ''.join(ipaddr)
+			if args.debug:
+				logger.debug(f"virustotal lookup for {args.ip}")
 			vtinfo = await get_vt_ipinfo(args)
 			if vtinfo:
 				last_analysis_stats = vtinfo.get("last_analysis_stats", {})
@@ -264,8 +278,8 @@ async def main(args):
 					vtforecolor = Fore.GREEN
 				print(f"{Fore.LIGHTBLUE_EX}vt\t{args.ip} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
 				for vendor in last_analysis_results:  # type: ignore
-					if last_analysis_results.get(vendor).get("category") in ('suspicious', "malicious"):  # type: ignore
-						print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result: {last_analysis_results.get(vendor).get('result')} {last_analysis_results.get(vendor).get('method')} ")  # type: ignore
+					if last_analysis_results.get(vendor).get("category") in ('malware', 'suspicious', "malicious"):  # type: ignore
+						print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result:{Fore.RED}{last_analysis_results.get(vendor).get('result')} {Fore.LIGHTBLUE_EX}{last_analysis_results.get(vendor).get('method')} ")  # type: ignore
 
 	if args.abuseipdb:
 		abuseipdbdata = await get_abuseipdb_data(args.ip)
