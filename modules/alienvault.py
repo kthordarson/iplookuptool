@@ -2,21 +2,18 @@ from loguru import logger
 import os
 import aiohttp
 
-CROWDSECAPIKEY = os.environ.get("CROWDSECAPIKEY")
-if not CROWDSECAPIKEY:
+ALIENTVAULTAPIKEY = os.environ.get("ALIENTVAULTAPIKEY")
+if not ALIENTVAULTAPIKEY:
     logger.warning("missing crowdsec api key")
     # os._exit(-1)
 
 
-async def get_crowdsec_data(args):
-    if CROWDSECAPIKEY:
-        headers = {"x-api-key": CROWDSECAPIKEY}
-        # curl -H "x-api-key: YOUR_API_KEY" https://cti.api.crowdsec.net/v2/smoke/185.7.214.104 | jq .
+async def get_alienvault_data(args):
+    if ALIENTVAULTAPIKEY:
+        headers = {"x-api-key": ALIENTVAULTAPIKEY}
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"https://cti.api.crowdsec.net/v2/smoke/{args.ip}", headers=headers
-                ) as response:
+                async with session.get(f"https://otx.alienvault.com/api/v1/indicators/IPv4/{args.ip}", headers=headers) as response:
                     if response.status == 200:
                         try:
                             jsonresp = await response.json()

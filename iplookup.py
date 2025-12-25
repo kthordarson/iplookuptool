@@ -19,6 +19,8 @@ from modules.ip2loc import get_ip2loc_data
 from modules.ipinfoio import get_ipinfo
 from modules.urlscanio import search_urlscanio
 from modules.crowdsec import get_crowdsec_data
+from modules.alienvault import get_alienvault_data
+
 import urllib3
 
 urllib3.disable_warnings()
@@ -65,6 +67,9 @@ def get_args():
 	parser.add_argument("-us", "--urlscanio", help="urlscanio lookup", action="store_true", default=False, dest="urlscanio")
 	parser.add_argument("--dumpurlscandata", help="dump urlscan data", action="store_true", default=False, dest="dumpurlscandata")
 	parser.add_argument("--skip_urlscanio", help="skip urlscanio lookup", action="store_true", default=False, dest="skip_urlscanio")
+
+	parser.add_argument('-av', '--alienvault', help='alienvault lookup', action='store_true', default=False, dest='alienvault')
+	parser.add_argument('--skip_alienvault', help='skip alienvault lookup', action='store_true', default=False, dest='skip_alienvault')
 
 	parser.add_argument("--graylog", help="search in graylog", action="store_true", default=False, dest="graylog")
 	parser.add_argument("--skip_graylog", help="skip graylog search", action="store_true", default=False, dest="skip_graylog")
@@ -118,6 +123,7 @@ async def main(args):
 			logger.error(f"[!] unhandled {e} {type(e)} for address {args.ip}")
 			return
 	if args.all:
+		args.alienvault = True
 		args.crowdsec = True
 		args.ipwhois = True
 		args.virustotal = True
@@ -129,7 +135,8 @@ async def main(args):
 		args.urlscanio = True
 		args.ip2location = True
 		args.ipinfoio = True
-
+	if args.skip_alienvault:
+		args.alienvault = False
 	if args.skip_urlscanio:
 		args.urlscanio = False
 	if args.skip_ipinfo:
@@ -152,6 +159,15 @@ async def main(args):
 		args.crowdsec = False
 	if args.skip_ip2location:
 		args.ip2location = False
+
+	if args.alienvault:
+		avdata = await get_alienvault_data(args)
+		if avdata:
+			print(f"{Fore.LIGHTBLUE_EX}alienvault data: {Fore.CYAN}{avdata.get('pulse_info').get('count')} pulses{Style.RESET_ALL} country:{Fore.LIGHTRED_EX}{avdata.get('country_code')}{Style.RESET_ALL} reputation: {Fore.LIGHTGREEN_EX}{avdata.get('reputation')}{Style.RESET_ALL}")
+			for pulse in avdata.get('pulse_info').get('pulses'):
+				print(f"{Fore.CYAN} pulse: {pulse.get('name')} created: {pulse.get('created')} modified: {pulse.get('modified')} {Style.RESET_ALL}")
+		else:
+			logger.warning(f"no alienvault data for {args.ip}")
 
 	if args.ipinfoio:
 		# ipinfo.io lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
