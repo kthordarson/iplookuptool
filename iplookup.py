@@ -20,6 +20,7 @@ from modules.ipinfoio import get_ipinfo
 from modules.urlscanio import search_urlscanio
 from modules.crowdsec import get_crowdsec_data
 from modules.alienvault import get_alienvault_data
+from modules.pulsedrive import get_pulsedrive_data
 
 import urllib3
 
@@ -70,6 +71,9 @@ def get_args():
 
 	parser.add_argument('-av', '--alienvault', help='alienvault lookup', action='store_true', default=False, dest='alienvault')
 	parser.add_argument('--skip_alienvault', help='skip alienvault lookup', action='store_true', default=False, dest='skip_alienvault')
+
+	parser.add_argument('-pv', '--pulsedrive', help='pulsedrive lookup', action='store_true', default=False, dest='pulsedrive')
+	parser.add_argument('--skip_pulsedrive', help='skip pulsedrive lookup', action='store_true', default=False, dest='skip_pulsedrive')
 
 	parser.add_argument("--graylog", help="search in graylog", action="store_true", default=False, dest="graylog")
 	parser.add_argument("--skip_graylog", help="skip graylog search", action="store_true", default=False, dest="skip_graylog")
@@ -123,6 +127,7 @@ async def main(args):
 			logger.error(f"[!] unhandled {e} {type(e)} for address {args.ip}")
 			return
 	if args.all:
+		args.pulsedrive = True
 		args.alienvault = True
 		args.crowdsec = True
 		args.ipwhois = True
@@ -159,6 +164,15 @@ async def main(args):
 		args.crowdsec = False
 	if args.skip_ip2location:
 		args.ip2location = False
+	if args.skip_pulsedrive:
+		args.pulsedrive = False
+
+	if args.pulsedrive:
+		pulsedivedata = await get_pulsedrive_data(args)
+		if pulsedivedata:
+			print(f"{Fore.LIGHTBLUE_EX}pulsedrive data: {Fore.CYAN}risk:{pulsedivedata.get('risk')} feed: {len(pulsedivedata.get('feeds'))} threats: {pulsedivedata.get('threats')}{Style.RESET_ALL}")
+		else:
+			logger.warning(f"no pulsedrive data for {args.ip}")
 
 	if args.alienvault:
 		avdata = await get_alienvault_data(args)
