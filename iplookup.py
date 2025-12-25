@@ -91,6 +91,7 @@ def get_args():
 	parser.add_argument("--maxoutput", help="limit output", default=10, type=int)
 	parser.add_argument("--all", help="use all lookups", action="store_true", default=False)
 	parser.add_argument("--debug", help="debug", action="store_true", default=False)
+
 	args = parser.parse_args()
 	return parser, args
 
@@ -119,13 +120,23 @@ async def main(args):
 		try:
 			ipaddress = ip_address(args.ip).exploded
 			args.ip = ipaddress
-			args.ips.append(ipaddress)
 		except ValueError as e:
 			logger.warning(f"[!] {e} {type(e)} for address {args.ip}")
 			return
 		except Exception as e:
 			logger.error(f"[!] unhandled {e} {type(e)} for address {args.ip}")
 			return
+	elif args.ips:
+		for ip_ in args.ips:
+			try:
+				ip = ''.join(ip_)
+				ipaddress = ip_address(''.join(ip)).exploded
+			except ValueError as e:
+				logger.warning(f"[!] {e} {type(e)} for address {ip}")
+				raise e
+			except Exception as e:
+				logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
+				raise e
 	if args.all:
 		args.pulsedrive = True
 		args.alienvault = True
@@ -168,18 +179,20 @@ async def main(args):
 		args.pulsedrive = False
 
 	if args.pulsedrive:
-		pulsedivedata = await get_pulsedrive_data(args)
-		if pulsedivedata:
-			print(f"{Fore.LIGHTBLUE_EX}pulsedrive data: {Fore.CYAN}risk:{pulsedivedata.get('risk')} feed: {len(pulsedivedata.get('feeds'))} threats: {pulsedivedata.get('threats')}{Style.RESET_ALL}")
+		data = await get_pulsedrive_data(args)
+		if data:
+			for pulsedivedata in data:
+				print(f"{Fore.LIGHTBLUE_EX}pulsedrive data: {Fore.CYAN}risk:{pulsedivedata.get('risk')} feed: {len(pulsedivedata.get('feeds'))} threats: {pulsedivedata.get('threats')}{Style.RESET_ALL}")
 		else:
 			logger.warning(f"no pulsedrive data for {args.ip}")
 
 	if args.alienvault:
-		avdata = await get_alienvault_data(args)
-		if avdata:
-			print(f"{Fore.LIGHTBLUE_EX}alienvault data: {Fore.CYAN}{avdata.get('pulse_info').get('count')} pulses{Style.RESET_ALL} country:{Fore.LIGHTRED_EX}{avdata.get('country_code')}{Style.RESET_ALL} reputation: {Fore.LIGHTGREEN_EX}{avdata.get('reputation')}{Style.RESET_ALL}")
-			for pulse in avdata.get('pulse_info').get('pulses'):
-				print(f"{Fore.CYAN} pulse: {pulse.get('name')} created: {pulse.get('created')} modified: {pulse.get('modified')} {Style.RESET_ALL}")
+		data = await get_alienvault_data(args)
+		if data:
+			for avdata in data:
+				print(f"{Fore.LIGHTBLUE_EX}alienvault {avdata.get('indicator')} data: {Fore.CYAN}{avdata.get('pulse_info').get('count')} pulses{Style.RESET_ALL} country:{Fore.LIGHTRED_EX}{avdata.get('country_code')}{Style.RESET_ALL} reputation: {Fore.LIGHTGREEN_EX}{avdata.get('reputation')}{Style.RESET_ALL}")
+				for pulse in avdata.get('pulse_info').get('pulses'):
+					print(f"{Fore.CYAN} pulse: {pulse.get('name')} created: {pulse.get('created')} modified: {pulse.get('modified')} {Style.RESET_ALL}")
 		else:
 			logger.warning(f"no alienvault data for {args.ip}")
 
@@ -317,9 +330,10 @@ async def main(args):
 			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 
 	if args.crowdsec:
-		crowdsecdata = await get_crowdsec_data(args)
-		if crowdsecdata:
-			print(f'{Fore.LIGHTBLUE_EX}crowdsec Reports:{Fore.CYAN} {crowdsecdata.get("reputation")} confidence: {crowdsecdata.get("confidence")}')
+		data = await get_crowdsec_data(args)
+		if data:
+			for crowdsecdata in data:
+				print(f'{Fore.LIGHTBLUE_EX}crowdsec {crowdsecdata.get("ip")} Reports:{Fore.CYAN} {crowdsecdata.get("reputation")} confidence: {crowdsecdata.get("confidence")}')
 
 	if args.graylog:
 		if args.ips:
@@ -439,7 +453,6 @@ async def main(args):
 			for addr in ipaddres_set:
 				print(f"{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}")
 				[print(f"{Fore.CYAN}   indicator for {addr} found: {k}") for k in indicators if addr in str(k.values())]  # type: ignore
-
 				maxdays = 1
 				limit = 100
 				query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """

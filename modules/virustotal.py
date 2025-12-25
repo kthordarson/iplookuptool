@@ -2,10 +2,7 @@ from loguru import logger
 import os
 import aiohttp
 
-VTAPIKEY = os.environ.get("VTAPIKEY",'')
-if not VTAPIKEY:
-	logger.error('missing virus total api key')
-	os._exit(-1)
+VTAPIKEY = os.environ.get("VTAPIKEY")
 
 try:
 	from vt import Client
@@ -15,6 +12,9 @@ except ImportError as e:
 	os._exit(-1)
 
 async def get_virustotal_info(args):
+	if not VTAPIKEY:
+		logger.warning("missing virustotal api key")
+		return {}
 	url = f"https://www.virustotal.com/api/v3/ip_addresses/{args.ip}"
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY}
 	try:
@@ -27,6 +27,9 @@ async def get_virustotal_info(args):
 		return None
 
 async def get_virustotal_comments(ipaddr, limit=10):
+	if not VTAPIKEY:
+		logger.warning("missing virustotal api key")
+		return {}
 	url = f"https://www.virustotal.com/api/v3/ip_addresses/{ipaddr}/comments?limit={limit}"
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY}
 	async with aiohttp.ClientSession() as session:
@@ -35,6 +38,9 @@ async def get_virustotal_comments(ipaddr, limit=10):
 			return jsonresults
 
 async def get_virustotal_scanurls(url):
+	if not VTAPIKEY:
+		logger.warning("missing virustotal api key")
+		return {}
 	payload = {"url": url}
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY, "content-type": "application/x-www-form-urlencoded"}
 	request_url = "https://www.virustotal.com/api/v3/urls"
@@ -45,6 +51,9 @@ async def get_virustotal_scanurls(url):
 			return infourl
 
 async def get_virustotal_urlinfo(vturl):
+	if not VTAPIKEY:
+		logger.warning("missing virustotal api key")
+		return {}
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY}
 	async with aiohttp.ClientSession() as session:
 		async with session.get(vturl, headers=headers) as response:
@@ -52,6 +61,11 @@ async def get_virustotal_urlinfo(vturl):
 			return data0
 
 async def get_virustotal_objects(ipaddr, limit=10, relation='comments'):
+
+	if not VTAPIKEY:
+		logger.warning("missing virustotal api key")
+		return {}
+
 	url = f"https://www.virustotal.com/api/v3/ip_addresses/{ipaddr}/{relation}?limit={limit}"
 	headers = {"accept": "application/json", "x-apikey": VTAPIKEY}
 	async with aiohttp.ClientSession() as session:
@@ -60,6 +74,9 @@ async def get_virustotal_objects(ipaddr, limit=10, relation='comments'):
 			return jsonresults
 
 async def get_vt_ipinfo(args):
+	if not VTAPIKEY:
+		logger.warning("missing virustotal api key")
+		return {}
 	vtipinfo = {}
 	try:
 		async with Client(VTAPIKEY) as client:
@@ -69,6 +86,9 @@ async def get_vt_ipinfo(args):
 	return vtipinfo
 
 async def do_vt_search(ipaddr, limit=10):
+	if not VTAPIKEY:
+		logger.warning("missing virustotal api key")
+		return
 	async with Client(VTAPIKEY) as client:
 		async for obj in client.iterator_async("/intelligence/search", params={"query": ipaddr}, limit=limit):  # type: ignore
 			print(f"{obj.type}:{obj.id}")

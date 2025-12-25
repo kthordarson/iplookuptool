@@ -3,14 +3,13 @@ import os
 import aiohttp
 
 ABUSEIPDBAPIKEY = os.environ.get("ABUSEIPDBAPIKEY")
-if not ABUSEIPDBAPIKEY:
-	logger.error("missing abuseipdb api key")
-	os._exit(-1)
-
 
 async def get_abuseipdb_data(ipaddr, maxdays=30):
 	# https://www.abuseipdb.com/api.html
 	# https://www.abuseipdb.com/check/[IP]/json?key=[API_KEY]&days=[DAYS]
+	if not ABUSEIPDBAPIKEY:
+		logger.warning("missing abuseipdb api key")
+		return None
 	headers = {"Key": ABUSEIPDBAPIKEY, "Accept": "application/json"}
 	params = {
 		"maxAgeInDays": maxdays,

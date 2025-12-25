@@ -3,12 +3,13 @@ import os
 import aiohttp
 
 VIEWDNSAPIKEY = os.environ.get("VIEWDNSAPIKEY")
-if not VIEWDNSAPIKEY:
-	logger.error("missing viewdns api key")
-	os._exit(-1)
 
 async def get_iphistory(domain, output='json'):
 	# https://viewdns.info/api/ip-history/
+
+	if not VIEWDNSAPIKEY:
+		logger.warning("missing viewdns api key")
+		return None
 
 	api_url = f'https://api.viewdns.info/iphistory/?domain={domain}&apikey={VIEWDNSAPIKEY}&output={output}'
 
@@ -31,6 +32,10 @@ async def get_iphistory(domain, output='json'):
 		return None
 
 async def get_subdomains(domain, output='json'):
+
+	if not VIEWDNSAPIKEY:
+		logger.warning("missing viewdns api key")
+		return None
 
 	api_url = f'https://api.viewdns.info/subdomains/?domain={domain}&apikey={VIEWDNSAPIKEY}&output={output}'
 

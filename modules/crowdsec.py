@@ -1,51 +1,50 @@
 from loguru import logger
 import os
 import aiohttp
-
-CROWDSECAPIKEY = os.environ.get("CROWDSECAPIKEY")
-if not CROWDSECAPIKEY:
-    logger.warning("missing crowdsec api key")
-    # os._exit(-1)
-
+import asyncio
 
 async def get_crowdsec_data(args):
-    if CROWDSECAPIKEY:
-        headers = {"x-api-key": CROWDSECAPIKEY}
-        # curl -H "x-api-key: YOUR_API_KEY" https://cti.api.crowdsec.net/v2/smoke/185.7.214.104 | jq .
-        try:
+    CROWDSECAPIKEY = os.environ.get("CROWDSECAPIKEY")
+    if not CROWDSECAPIKEY:
+        logger.warning("missing crowdsec api key")
+        return None
+    headers = {"x-api-key": CROWDSECAPIKEY}
+    if args.ip:
+        iplist = [args.ip]
+    else:
+        iplist = args.ips
+    data = []
+    try:
+        for ipaddr_ in iplist:
+            ipaddr = ''.join(ipaddr_)
+            # logger.debug(f"querying crowdsec for {ipaddr} {ipaddr_}")
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"https://cti.api.crowdsec.net/v2/smoke/{args.ip}", headers=headers
-                ) as response:
+                async with session.get(f"https://cti.api.crowdsec.net/v2/smoke/{ipaddr}", headers=headers) as response:
                     if response.status == 200:
                         try:
                             jsonresp = await response.json()
                         except Exception as e:
-                            logger.error(
-                                f"[!] {e} {type(e)} while parsing json response"
-                            )
+                            logger.error(f"[!] {e} {type(e)} while parsing json response")
                             return None
                         if jsonresp:
-                            data = jsonresp
-                            return data
+                            data.append(jsonresp)
                         else:
-                            logger.error(
-                                f"Unknown error for {args.ip} json: {jsonresp}"
-                            )
-                            return None
+                            logger.error(f"Unknown error for {ipaddr} json: {jsonresp}")
+                            await asyncio.sleep(1)
+                            continue
                     elif response.status == 404:
                         if args.debug:
                             text = await response.text()
-                            logger.warning(f"[!] not found {args.ip} {text}")  # type: ignore
-                        return None
+                            logger.warning(f"[!] not found {ipaddr} {text}")  # type: ignore
+                        await asyncio.sleep(1)
+                        continue
                     else:
-                        logger.warning(
-                            f"[!] {response.status} {response.reason} for {args.ip}"
-                        )
+                        logger.warning(f"[!] {response.status} {response.reason} for {ipaddr}")
                         if args.debug:
-                            logger.warning(f"headers: {response.headers}")
-                            logger.warning(f"text: {await response.text()}")
-                        return None
-        except Exception as e:
-            logger.error(f"[!] {e} {type(e)}")
-            return None
+                            responsetext = await response.text()
+                            logger.warning(f"response: {responsetext}")
+                        await asyncio.sleep(1)
+                        continue
+    except Exception as e:
+        logger.error(f"[!] {e} {type(e)}")
+    return data
