@@ -128,8 +128,8 @@ async def main(args):
 			return
 	elif args.ips:
 		for ip_ in args.ips:
-			try:
-				ip = ''.join(ip_)
+			ip = ''.join(ip_)
+			try:				
 				ipaddress = ip_address(''.join(ip)).exploded
 			except ValueError as e:
 				logger.warning(f"[!] {e} {type(e)} for address {ip}")
@@ -241,7 +241,7 @@ async def main(args):
 		# search logs for remoteurl
 		infourl = await get_virustotal_scanurls(args.url)
 		vturlinfo = await get_virustotal_urlinfo(infourl)
-		vt_url_resultdata = vturlinfo.get("data").get("attributes").get("results")
+		vt_url_resultdata = vturlinfo.get("data", {}).get("attributes").get("results")
 		defenderdata = {}
 		try:
 			token = await get_aad_token()
@@ -252,7 +252,7 @@ async def main(args):
 				logger.error(traceback.format_exc())
 			os._exit(-1)
 		finally:
-			print(f"{Fore.LIGHTBLUE_EX}vt url info {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data').get('attributes').get('stats')}{Style.RESET_ALL}")
+			print(f"{Fore.LIGHTBLUE_EX}vt url info {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data', {}).get('attributes', {}).get('stats')}{Style.RESET_ALL}")
 			for vendor in vt_url_resultdata:
 				if vt_url_resultdata.get(vendor).get("category") == "malicious":
 					print(f"{Fore.CYAN} Vendor: {vendor} result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
@@ -279,8 +279,8 @@ async def main(args):
 		infourl = await get_virustotal_scanurls(args.vturl)
 		print(f"{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}")
 		vturlinfo = await get_virustotal_urlinfo(infourl)
-		vt_url_resultdata = vturlinfo.get("data").get("attributes").get("results")
-		print(f"{Fore.BLUE}vt url info: {Fore.GREEN}{len(vt_url_resultdata)}: {vturlinfo.get('data').get('attributes').get('stats')}")
+		vt_url_resultdata = vturlinfo.get("data", {}).get("attributes", {}).get("results")
+		print(f"{Fore.BLUE}vt url info: {Fore.GREEN}{len(vt_url_resultdata)}: {vturlinfo.get('data', {}).get('attributes', {}).get('stats')}")
 		for vendor in vt_url_resultdata:
 			if vt_url_resultdata.get(vendor).get("category") == "malicious":
 				print(f"{Fore.BLUE}Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
