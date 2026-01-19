@@ -18,7 +18,7 @@ async def get_alienvault_data(args):
         ipaddr = ''.join(ipaddr_)
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ipaddr}", headers=headers) as response:
+                async with session.get(f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ipaddr}", headers=headers, ssl=False) as response:
                     if response.status == 200:
                         try:
                             jsonresp = await response.json()
