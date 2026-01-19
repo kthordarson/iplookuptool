@@ -5,20 +5,20 @@ import asyncio
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-urllib3.disable_warnings(urllib3.exceptions.SSLError)
+urllib3.disable_warnings(urllib3.exceptions.SSLError)  # type: ignore
 
-async def get_urlscanio_data(ipaddr):
+async def xxxget_urlscanio_data(args):
 	# https://urlscan.io/docs/api/
 	pass
 
 async def search_urlscanio(remoteurl):
-	urlscanapikey = os.environ.get("URLSCANIOAPIKEY")
-	if not urlscanapikey:
+	URLSCANIOAPIKEY = os.environ.get("URLSCANIOAPIKEY")
+	if not URLSCANIOAPIKEY:
 		logger.warning("missing urlscan.io api key")
 		return None
 	headers = {
 		'Authorization': 'Basic',
-		'API-Key': urlscanapikey}
+		'API-Key': URLSCANIOAPIKEY}
 	params = {
 		'q': remoteurl,
 			}
