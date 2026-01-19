@@ -27,6 +27,9 @@ import urllib3
 urllib3.disable_warnings()
 
 # todo
+# add https://analytics.dugganusa.com/api/v1/stix-feed
+# https://analytics.dugganusa.com/api/v1/stix-feed/v2
+# curl -s https://analytics.dugganusa.com/api/v1/stix-feed |   jq -r '.objects[] | select(.type=="indicator") | .pattern' |   grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u
 # add https://cleantalk.org/blacklists/34.149.87.45
 # add https://www.netify.ai/resources/ips/34.149.87.45
 # add https://www.criminalip.io/asset/report/34.149.87.45
