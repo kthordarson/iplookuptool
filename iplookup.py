@@ -77,6 +77,7 @@ def get_args():
 
 	parser.add_argument('-pv', '--pulsedrive', help='pulsedrive lookup', action='store_true', default=False, dest='pulsedrive')
 	parser.add_argument('--skip_pulsedrive', help='skip pulsedrive lookup', action='store_true', default=False, dest='skip_pulsedrive')
+	parser.add_argument('--dumppulsedrive', help='dump pulsedrive data', action='store_true', default=False, dest='dumppulsedrive')
 
 	parser.add_argument("--graylog", help="search in graylog", action="store_true", default=False, dest="graylog")
 	parser.add_argument("--skip_graylog", help="skip graylog search", action="store_true", default=False, dest="skip_graylog")
@@ -185,7 +186,21 @@ async def main(args):
 		data = await get_pulsedrive_data(args)
 		if data:
 			for pulsedivedata in data:
-				print(f"{Fore.LIGHTBLUE_EX}pulsedrive data: {Fore.CYAN}risk:{pulsedivedata.get('risk')} feed: {len(pulsedivedata.get('feeds'))} threats: {pulsedivedata.get('threats')}{Style.RESET_ALL}")
+				threats = pulsedivedata.get('threats')
+				risk = pulsedivedata.get('risk')
+				risk_color = Fore.GREEN
+				if risk == 'low':
+					risk_color = Fore.GREEN
+				elif risk == 'medium':
+					risk_color = Fore.YELLOW 
+				elif risk == 'high':
+					risk_color = Fore.RED
+				print(f"{Fore.LIGHTBLUE_EX}pulsedrive: type: {pulsedivedata.get('type')} {risk_color}risk:{risk} feeds: {len(pulsedivedata.get('feeds'))} threats: {len(threats)}{Style.RESET_ALL}")
+				if args.dumppulsedrive:
+					for threat in threats:
+						print(f"{Fore.CYAN} threat: {threat.get('name')} category: {threat.get('category')} risk: {threat.get('risk')} {Style.RESET_ALL}")
+					for feed in pulsedivedata.get('feeds'):
+						print(f"{Fore.CYAN} feed: {feed.get('name')} category: {feed.get('category')} {Style.RESET_ALL}")
 		else:
 			logger.warning(f"no pulsedrive data for {args.ip}")
 
@@ -271,7 +286,7 @@ async def main(args):
 			if urlscandata and urlscandata.get("total") > 0:
 				print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.RED} {urlscandata.get("total")} ')
 				if args.dumpurlscandata:
-					for res in urlscandata.get("results"):
+					for res in urlscandata.get("results")[: args.maxoutput]:
 						print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
 			else:
 				logger.warning(f"no urlscanio data for {args.ip} urlscandata: {urlscandata}")
