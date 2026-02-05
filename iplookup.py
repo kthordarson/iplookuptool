@@ -64,6 +64,7 @@ def get_args():
 
 	parser.add_argument("-abip", "--abuseipdb", help="abuseipdb lookup", action="store_true", default=False, dest="abuseipdb")
 	parser.add_argument("--skip_abuseipdb", help="skip abuseipdb lookup", action="store_true", default=False, dest="skip_abuseipdb")
+	parser.add_argument("--dumpabusedata", help="dump abuseipdb data", action="store_true", default=False, dest="dumpabusedata")
 
 	parser.add_argument("--crowdsec", help="crowdsec lookup", action="store_true", default=False, dest="crowdsec")
 	parser.add_argument("--skip_crowdsec", help="skip crowdsec lookup", action="store_true", default=False, dest="skip_crowdsec")
@@ -94,6 +95,7 @@ def get_args():
 
 	parser.add_argument("--maxoutput", help="limit output", default=10, type=int)
 	parser.add_argument("--all", help="use all lookups", action="store_true", default=False)
+	parser.add_argument("--dumpall", help="full dump", action="store_true", default=False)
 	parser.add_argument("--debug", help="debug", action="store_true", default=False)
 
 	args = parser.parse_args()
@@ -181,7 +183,10 @@ async def main(args):
 		args.ip2location = False
 	if args.skip_pulsedrive:
 		args.pulsedrive = False
-
+	if args.dumpall:
+		args.dumppulsedrive = True
+		args.dumpurlscandata = True
+		args.dumpabusedata = True
 	if args.pulsedrive:
 		data = await get_pulsedrive_data(args)
 		if data:
@@ -200,7 +205,11 @@ async def main(args):
 					for threat in threats:
 						print(f"{Fore.CYAN} threat: {threat.get('name')} category: {threat.get('category')} risk: {threat.get('risk')} {Style.RESET_ALL}")
 					for feed in pulsedivedata.get('feeds'):
-						print(f"{Fore.CYAN} feed: {feed.get('name')} category: {feed.get('category')} {Style.RESET_ALL}")
+						category = feed.get('category')
+						cat_color = Fore.GREEN
+						if category in ['malware', 'abuse', 'botnet', 'phishing']:
+							cat_color = Fore.RED
+						print(f"{Fore.CYAN} feed: {feed.get('name')} category: {cat_color}{category} {Style.RESET_ALL}")
 		else:
 			logger.warning(f"no pulsedrive data for {args.ip}")
 
@@ -346,12 +355,21 @@ async def main(args):
 		abuseipdbdata = await get_abuseipdb_data(args.ip)
 		if abuseipdbdata:
 			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+			if args.dumpabusedata:
+				for report in abuseipdbdata.get("data").get("reports"):
+					print(f'{Fore.CYAN} reportedAt: {report.get("reportedAt")} reporterId: {report.get("reporterId")} comment: {report.get("comment")} ')
 
 	if args.crowdsec:
 		data = await get_crowdsec_data(args)
 		if data:
 			for crowdsecdata in data:
-				print(f'{Fore.LIGHTBLUE_EX}crowdsec {crowdsecdata.get("ip")} Reports:{Fore.CYAN} {crowdsecdata.get("reputation")} confidence: {crowdsecdata.get("confidence")}')
+				reputation = crowdsecdata.get("reputation")
+				rep_color = Fore.GREEN
+				if reputation in ['unknown', 'malicious']:
+					rep_color = Fore.RED
+				elif reputation == 'suspicious':
+					rep_color = Fore.YELLOW
+				print(f'{Fore.LIGHTBLUE_EX}crowdsec {crowdsecdata.get("ip")} Reputation:{rep_color} {reputation} confidence: {crowdsecdata.get("confidence")}')
 
 	if args.graylog:
 		if args.ips:
@@ -519,8 +537,8 @@ async def main(args):
 			azuredata = []
 			if args.debug:
 				logger.error(traceback.format_exc())
-		# if args.debug:
-		# 	logger.debug(f"azure signinlogs for {args.ip} {len(azuredata)} ")
+		if args.debug:
+			logger.debug(f"azure signinlogs for {args.ip} {len(azuredata)} ")
 		if len(azuredata) >= 1:
 			print(f"{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(azuredata)}")
 			if len(azuredata) > 0:
