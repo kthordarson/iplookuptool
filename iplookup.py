@@ -37,7 +37,7 @@ urllib3.disable_warnings()
 # add https://viewdns.info/
 # add https://cleantalk.org
 # add https://www.malwareurl.com
-# add https://urlhaus.abuse.ch/api/
+# finish https://urlhaus.abuse.ch/api/
 # finish https://dnsdumpster.com/
 
 def get_args():
@@ -459,7 +459,11 @@ async def process_results(results, args):
 	# AbuseIPDB results
 	if "abuseipdb" in results and results["abuseipdb"]:
 		abuseipdbdata = results["abuseipdb"]
-		print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+		score = abuseipdbdata.get("data").get("abuseConfidenceScore")
+		score_color = Fore.GREEN
+		if score >= 1:
+			score_color = Fore.RED
+		print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore:{score_color} {score} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
 		if args.dumpabusedata:
 			for report in abuseipdbdata.get("data").get("reports"):
 				print(f'{Fore.CYAN} reportedAt: {report.get("reportedAt")} reporterId: {report.get("reporterId")} comment: {report.get("comment")} ')
