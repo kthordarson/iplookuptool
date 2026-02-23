@@ -18,7 +18,7 @@ async def get_pulsedrive_data(args) -> list:
         for ipaddr_ in iplist:
             ipaddr = ''.join(ipaddr_)
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"https://pulsedive.com/api/info.php?indicator={ipaddr}&key={PULSEDIVEAPIKEY}") as response:
+                async with session.get(f"https://pulsedive.com/api/info.php?indicator={ipaddr}&key={PULSEDIVEAPIKEY}", ssl=False) as response:
                     if response.status == 200:
                         try:
                             jsonresp = await response.json()

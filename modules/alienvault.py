@@ -7,7 +7,7 @@ async def get_alienvault_data(args):
     data = []
     ALIENTVAULTAPIKEY = os.environ.get("ALIENTVAULTAPIKEY")
     if not ALIENTVAULTAPIKEY:
-        logger.warning("missing crowdsec api key")
+        logger.warning("missing alienvault api key")
         return data
     if args.ip:
         iplist = [args.ip]
@@ -18,7 +18,7 @@ async def get_alienvault_data(args):
         ipaddr = ''.join(ipaddr_)
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ipaddr}", headers=headers) as response:
+                async with session.get(f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ipaddr}", headers=headers, ssl=False) as response:
                     if response.status == 200:
                         try:
                             jsonresp = await response.json()
@@ -32,6 +32,10 @@ async def get_alienvault_data(args):
                             logger.error(f"Unknown error for {args.ip} json: {jsonresp}")
                             await asyncio.sleep(1)
                             continue
+                    elif response.status in [502, 503, 504]:
+                        logger.warning(f"[!] {response.status} {response.reason} for {ipaddr}")
+                        await asyncio.sleep(1)
+                        continue
                     elif response.status == 404:
                         if args.debug:
                             text = await response.text()

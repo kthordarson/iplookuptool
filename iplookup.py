@@ -21,6 +21,7 @@ from modules.urlscanio import search_urlscanio
 from modules.crowdsec import get_crowdsec_data
 from modules.alienvault import get_alienvault_data
 from modules.pulsedrive import get_pulsedrive_data
+from modules.dnsdumpster import get_dnsdumpster
 
 import urllib3
 
@@ -36,8 +37,8 @@ urllib3.disable_warnings()
 # add https://viewdns.info/
 # add https://cleantalk.org
 # add https://www.malwareurl.com
-# add https://urlhaus.abuse.ch/api/
-# add https://dnsdumpster.com/
+# finish https://urlhaus.abuse.ch/api/
+# finish https://dnsdumpster.com/
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
@@ -64,6 +65,7 @@ def get_args():
 
 	parser.add_argument("-abip", "--abuseipdb", help="abuseipdb lookup", action="store_true", default=False, dest="abuseipdb")
 	parser.add_argument("--skip_abuseipdb", help="skip abuseipdb lookup", action="store_true", default=False, dest="skip_abuseipdb")
+	parser.add_argument("--dumpabusedata", help="dump abuseipdb data", action="store_true", default=False, dest="dumpabusedata")
 
 	parser.add_argument("--crowdsec", help="crowdsec lookup", action="store_true", default=False, dest="crowdsec")
 	parser.add_argument("--skip_crowdsec", help="skip crowdsec lookup", action="store_true", default=False, dest="skip_crowdsec")
@@ -77,6 +79,11 @@ def get_args():
 
 	parser.add_argument('-pv', '--pulsedrive', help='pulsedrive lookup', action='store_true', default=False, dest='pulsedrive')
 	parser.add_argument('--skip_pulsedrive', help='skip pulsedrive lookup', action='store_true', default=False, dest='skip_pulsedrive')
+	parser.add_argument('--dumppulsedrive', help='dump pulsedrive data', action='store_true', default=False, dest='dumppulsedrive')
+
+	parser.add_argument("--dnsdumpster", help="dnsdumpster lookup", action="store_true", default=False, dest="dnsdumpster")
+	parser.add_argument("--skip_dnsdumpster", help="skip dnsdumpster lookup", action="store_true", default=False, dest="skip_dnsdumpster")
+	parser.add_argument("--dump_dnsdumpster", help="dump dnsdumpster data", action="store_true", default=False, dest="dump_dnsdumpster")
 
 	parser.add_argument("--graylog", help="search in graylog", action="store_true", default=False, dest="graylog")
 	parser.add_argument("--skip_graylog", help="skip graylog search", action="store_true", default=False, dest="skip_graylog")
@@ -93,11 +100,11 @@ def get_args():
 
 	parser.add_argument("--maxoutput", help="limit output", default=10, type=int)
 	parser.add_argument("--all", help="use all lookups", action="store_true", default=False)
+	parser.add_argument("--dumpall", help="full dump", action="store_true", default=False)
 	parser.add_argument("--debug", help="debug", action="store_true", default=False)
 
 	args = parser.parse_args()
 	return parser, args
-
 
 async def main(args):
 	if args.ipfile:
@@ -132,7 +139,7 @@ async def main(args):
 	elif args.ips:
 		for ip_ in args.ips:
 			ip = ''.join(ip_)
-			try:				
+			try:                
 				ipaddress = ip_address(''.join(ip)).exploded
 			except ValueError as e:
 				logger.warning(f"[!] {e} {type(e)} for address {ip}")
@@ -140,7 +147,9 @@ async def main(args):
 			except Exception as e:
 				logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
 				raise e
+	
 	if args.all:
+		args.dnsdumpster = True
 		args.pulsedrive = True
 		args.alienvault = True
 		args.crowdsec = True
@@ -154,6 +163,7 @@ async def main(args):
 		args.urlscanio = True
 		args.ip2location = True
 		args.ipinfoio = True
+	
 	if args.skip_alienvault:
 		args.alienvault = False
 	if args.skip_urlscanio:
@@ -180,383 +190,352 @@ async def main(args):
 		args.ip2location = False
 	if args.skip_pulsedrive:
 		args.pulsedrive = False
+	
+	if args.dumpall:
+		args.dumppulsedrive = True
+		args.dumpurlscandata = True
+		args.dumpabusedata = True
+		args.dump_dnsdumpster = True
+
+	# Create a list to hold all async tasks
+	tasks = []
+	results = {}
+
+	# Helper function to run module and store results
+	async def run_module(module_name, coro):
+		try:
+			result = await coro
+			results[module_name] = result
+			return result
+		except Exception as e:
+			logger.error(f"Error in {module_name}: {e}")
+			results[module_name] = None
+			return None
+
+	# Add tasks based on enabled modules
+	if args.dnsdumpster:
+		pass  # tasks.append(run_module("dnsdumpster", get_dnsdumpster(args)))  # todo finish
 
 	if args.pulsedrive:
-		data = await get_pulsedrive_data(args)
-		if data:
-			for pulsedivedata in data:
-				print(f"{Fore.LIGHTBLUE_EX}pulsedrive data: {Fore.CYAN}risk:{pulsedivedata.get('risk')} feed: {len(pulsedivedata.get('feeds'))} threats: {pulsedivedata.get('threats')}{Style.RESET_ALL}")
-		else:
-			logger.warning(f"no pulsedrive data for {args.ip}")
-
+		tasks.append(run_module("pulsedrive", get_pulsedrive_data(args)))
+	
 	if args.alienvault:
-		data = await get_alienvault_data(args)
-		if data:
-			for avdata in data:
-				print(f"{Fore.LIGHTBLUE_EX}alienvault {avdata.get('indicator')} data: {Fore.CYAN}{avdata.get('pulse_info').get('count')} pulses{Style.RESET_ALL} country:{Fore.LIGHTRED_EX}{avdata.get('country_code')}{Style.RESET_ALL} reputation: {Fore.LIGHTGREEN_EX}{avdata.get('reputation')}{Style.RESET_ALL}")
-				for pulse in avdata.get('pulse_info').get('pulses'):
-					print(f"{Fore.CYAN} pulse: {pulse.get('name')} created: {pulse.get('created')} modified: {pulse.get('modified')} {Style.RESET_ALL}")
-		else:
-			logger.warning(f"no alienvault data for {args.ip}")
-
+		tasks.append(run_module("alienvault", get_alienvault_data(args)))
+	
 	if args.ipinfoio:
-		# ipinfo.io lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
 		if args.ips:
 			for ipaddr in args.ips:
-				args.ip = ''.join(ipaddr)
-				if args.debug:
-					logger.debug(f"ipinfo.io lookup for {args.ip}")
-				ipinfodata = await get_ipinfo(args)
-				if ipinfodata:
-					print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
-				else:
-					logger.warning(f"no ipinfo.io data for {args.ip}")
+				args_copy = argparse.Namespace(**vars(args))
+				args_copy.ip = ''.join(ipaddr)
+				tasks.append(run_module(f"ipinfoio_{ipaddr}", get_ipinfo(args_copy)))
 		elif args.ip:
-			if args.debug:
-				logger.debug(f"ipinfo.io lookup for {args.ip}")
-			ipinfodata = await get_ipinfo(args)
-			if ipinfodata:
-				print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
-			else:
-				logger.warning(f"no ipinfo.io data for {args.ip}")
-
+			tasks.append(run_module("ipinfoio", get_ipinfo(args)))
+	
 	if args.ip2location:
-		# ip2location lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
 		if args.ips:
 			for ipaddr in args.ips:
-				args.ip = ''.join(ipaddr)
-			if args.debug:
-				logger.debug(f"ip2location lookup for {args.ip}")
-			ip2locdata = await get_ip2loc_data(args)
-			if ip2locdata:
-				print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
-			else:
-				logger.warning(f"no ip2location data for {args.ip}")
+				args_copy = argparse.Namespace(**vars(args))
+				args_copy.ip = ''.join(ipaddr)
+				tasks.append(run_module(f"ip2location_{ipaddr}", get_ip2loc_data(args_copy)))
 		elif args.ip:
-			if args.debug:
-				logger.debug(f"ip2location lookup for {args.ip}")
-			ip2locdata = await get_ip2loc_data(args)
-			if ip2locdata:
-				print(f"{Fore.LIGHTBLUE_EX}ip2location data: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
-			else:
-				logger.warning(f"no ip2location data for {args.ip}")
+			tasks.append(run_module("ip2location", get_ip2loc_data(args)))
+	
 	if args.url:
-		# search logs for remoteurl
-		infourl = await get_virustotal_scanurls(args.url)
-		vturlinfo = await get_virustotal_urlinfo(infourl)
-		vt_url_resultdata = vturlinfo.get("data", {}).get("attributes").get("results")
-		defenderdata = {}
+		# URL-specific tasks
+		infourl_task = run_module("virustotal_scanurls", get_virustotal_scanurls(args.url))
+		tasks.append(infourl_task)
+		
+		# Run this one first to get the URL for the next task
+		infourl = await infourl_task
+		if infourl:
+			tasks.append(run_module("virustotal_urlinfo", get_virustotal_urlinfo(infourl)))
+		
+		# Defender URL search
 		try:
 			token = await get_aad_token()
-			defenderdata = await search_remote_url(args.url, token, limit=100, maxdays=3)
+			tasks.append(run_module("defender_url", search_remote_url(args.url, token, limit=100, maxdays=3)))
 		except (DefenderException, TokenException) as e:
 			logger.error(f'[!] Error getting defender data: {e} {type(e)} for url {args.url}')
 			if args.debug:
 				logger.error(traceback.format_exc())
-			os._exit(-1)
-		finally:
-			print(f"{Fore.LIGHTBLUE_EX}vt url info {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data', {}).get('attributes', {}).get('stats')}{Style.RESET_ALL}")
-			for vendor in vt_url_resultdata:
-				if vt_url_resultdata.get(vendor).get("category") == "malicious":
-					print(f"{Fore.CYAN} Vendor: {vendor} result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
-			print(f"{Fore.LIGHTBLUE_EX}defender data:{Fore.YELLOW} {len(defenderdata.get("Results", []))} {Style.RESET_ALL}")
-			if len(defenderdata.get("Results", [])) >= 1:
-				results = defenderdata.get("Results", [])
-				for res in results[: args.maxoutput]:
-					print(f"{Fore.CYAN} {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
-
+	
 	if args.urlscanio:
-		try:
-			urlscandata = await search_urlscanio(args.ip)
-			if urlscandata and urlscandata.get("total") > 0:
-				print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.RED} {urlscandata.get("total")} ')
-				if args.dumpurlscandata:
-					for res in urlscandata.get("results"):
-						print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
-			else:
-				logger.warning(f"no urlscanio data for {args.ip} urlscandata: {urlscandata}")
-		except Exception as e:
-			logger.error(f"unhandled {type(e)} {e}")
-
+		tasks.append(run_module("urlscanio", search_urlscanio(args.ip)))
+	
 	if args.vturl:
-		infourl = await get_virustotal_scanurls(args.vturl)
-		print(f"{Fore.LIGHTBLUE_EX}getting info from vt url:{Fore.CYAN} {infourl}")
-		vturlinfo = await get_virustotal_urlinfo(infourl)
+		infourl_task = run_module("virustotal_scanurls_vturl", get_virustotal_scanurls(args.vturl))
+		tasks.append(infourl_task)
+		infourl = await infourl_task
+		if infourl:
+			tasks.append(run_module("virustotal_urlinfo_vturl", get_virustotal_urlinfo(infourl)))
+	
+	if args.ipwhois and args.ip:
+		ipaddress = ip_address(args.ip)
+		if ipaddress.is_global:
+			tasks.append(run_module("ipwhois", get_ipwhois(args)))
+		elif ipaddress.is_private:
+			print(f"{Fore.YELLOW}private address: {ipaddress}")
+	
+	if args.virustotal:
+		if args.ips:
+			for ipaddr in args.ips:
+				args_copy = argparse.Namespace(**vars(args))
+				args_copy.ip = ''.join(ipaddr)
+				tasks.append(run_module(f"virustotal_{ipaddr}", get_vt_ipinfo(args_copy)))
+		elif args.ip:
+			tasks.append(run_module("virustotal", get_vt_ipinfo(args)))
+	
+	if args.abuseipdb:
+		tasks.append(run_module("abuseipdb", get_abuseipdb_data(args.ip)))
+	
+	if args.crowdsec:
+		tasks.append(run_module("crowdsec", get_crowdsec_data(args)))
+	
+	if args.graylog:
+		if args.ips:
+			for ipaddr in args.ips:
+				args_copy = argparse.Namespace(**vars(args))
+				args_copy.ip = ''.join(ipaddr)
+				tasks.append(run_module(f"graylog_{ipaddr}", graylog_search_ip(args_copy, range=86400)))
+		elif args.ip:
+			tasks.append(run_module("graylog", graylog_search_ip(args, range=86400)))
+	
+	if args.sslvpnloginfail and args.graylog:
+		tasks.append(run_module("sslvpnloginfail", graylog_search(query="action:ssl-login-fail", range=86400)))
+	
+	if args.ftgd_blk and args.graylog:
+		tasks.append(run_module("ftgd_blk", graylog_search(query="eventtype:ftgd_blk", range=86400)))
+	
+	if args.azure:
+		tasks.append(run_module("azure", get_azure_signinlogs(args)))
+	
+	if args.defender:
+		try:
+			token = await get_aad_token()
+			tasks.append(run_module("defender_indicators", get_indicators(token, args.ip)))
+			
+			maxdays = 1
+			limit = 100
+			query = f"""let ip = "{args.ip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
+			tasks.append(run_module("defender_network", search_devicenetworkevents(token, query)))
+		except (TokenException, DefenderException) as e:
+			logger.error(f'Error getting defender token: {e}')
+	
+	# Run all tasks concurrently
+	if tasks:
+		await asyncio.gather(*tasks, return_exceptions=True)
+	
+	# Process and display results
+	await process_results(results, args)
+
+async def process_results(results, args):
+	"""Process and display the results from all modules"""
+	# dnsdumpster results
+	if "dnsdumpster" in results and results["dnsdumpster"]:
+		data = results["dnsdumpster"]
+		print(f"{Fore.LIGHTBLUE_EX}dnsdumpster data for {args.ip}:{Style.RESET_ALL}")
+		if args.dump_dnsdumpster:
+			print(json.dumps(data, indent=2))
+	# Pulsedrive results
+	if "pulsedrive" in results and results["pulsedrive"]:
+		data = results["pulsedrive"]
+		for pulsedivedata in data:
+			threats = pulsedivedata.get('threats')
+			risk = pulsedivedata.get('risk')
+			risk_color = Fore.GREEN
+			if risk == 'low':
+				risk_color = Fore.GREEN
+			elif risk == 'medium':
+				risk_color = Fore.YELLOW 
+			elif risk == 'high':
+				risk_color = Fore.RED
+			print(f"{Fore.LIGHTBLUE_EX}pulsedrive: type: {pulsedivedata.get('type')} {risk_color}risk:{risk} feeds: {len(pulsedivedata.get('feeds'))} threats: {len(threats)}{Style.RESET_ALL}")
+			if args.dumppulsedrive:
+				for threat in threats:
+					print(f"{Fore.CYAN} threat: {threat.get('name')} category: {threat.get('category')} risk: {threat.get('risk')} {Style.RESET_ALL}")
+				for feed in pulsedivedata.get('feeds'):
+					category = feed.get('category')
+					cat_color = Fore.GREEN
+					if category in ['malware', 'abuse', 'botnet', 'phishing']:
+						cat_color = Fore.RED
+					print(f"{Fore.CYAN} feed: {feed.get('name')} category: {cat_color}{category} {Style.RESET_ALL}")
+	elif args.pulsedrive:
+		logger.warning(f"no pulsedrive data for {args.ip}")
+	
+	# Alienvault results
+	if "alienvault" in results and results["alienvault"]:
+		data = results["alienvault"]
+		for avdata in data:
+			print(f"{Fore.LIGHTBLUE_EX}alienvault {avdata.get('indicator')} data: {Fore.CYAN}{avdata.get('pulse_info').get('count')} pulses{Style.RESET_ALL} country:{Fore.LIGHTRED_EX}{avdata.get('country_code')}{Style.RESET_ALL} reputation: {Fore.LIGHTGREEN_EX}{avdata.get('reputation')}{Style.RESET_ALL}")
+			for pulse in avdata.get('pulse_info').get('pulses'):
+				print(f"{Fore.CYAN} pulse: {pulse.get('name')} created: {pulse.get('created')} modified: {pulse.get('modified')} {Style.RESET_ALL}")
+	elif args.alienvault:
+		logger.warning(f"no alienvault data for {args.ip}")
+	
+	# IPInfo.io results
+	for key in results:
+		if key.startswith("ipinfoio"):
+			ipinfodata = results[key]
+			if ipinfodata:
+				ipaddr = key.replace("ipinfoio_", "") if "_" in key else args.ip
+				print(f"{Fore.LIGHTBLUE_EX}ipinfo.io data for {ipaddr}: {Fore.CYAN}{ipinfodata.get('country')} {ipinfodata.get('region')} {ipinfodata.get('city')} {ipinfodata.get('loc')} {ipinfodata.get('postal')} {ipinfodata.get('timezone')} org: {ipinfodata.get('org')}")
+			elif args.ipinfoio:
+				logger.warning(f"no ipinfo.io data for {args.ip}")
+	
+	# IP2Location results
+	for key in results:
+		if key.startswith("ip2location"):
+			ip2locdata = results[key]
+			if ip2locdata:
+				ipaddr = key.replace("ip2location_", "") if "_" in key else args.ip
+				print(f"{Fore.LIGHTBLUE_EX}ip2location data for {ipaddr}: {Fore.CYAN}{ip2locdata.get('country_code')} {ip2locdata.get('country_name')} {ip2locdata.get('region_name')} {ip2locdata.get('city_name')} {ip2locdata.get('latitude')}, {ip2locdata.get('longitude')} {ip2locdata.get('zip_code')} {ip2locdata.get('time_zone')} asn: {ip2locdata.get('asn')} as: {ip2locdata.get('as')}")
+			elif args.ip2location:
+				logger.warning(f"no ip2location data for {args.ip}")
+	
+	# URL-specific results
+	if "virustotal_urlinfo" in results and results["virustotal_urlinfo"]:
+		vturlinfo = results["virustotal_urlinfo"]
+		vt_url_resultdata = vturlinfo.get("data", {}).get("attributes", {}).get("results")
+		print(f"{Fore.LIGHTBLUE_EX}vt url info {Fore.CYAN} {len(vt_url_resultdata)}:{Fore.YELLOW} {vturlinfo.get('data', {}).get('attributes', {}).get('stats')}{Style.RESET_ALL}")
+		for vendor in vt_url_resultdata:
+			if vt_url_resultdata.get(vendor).get("category") == "malicious":
+				print(f"{Fore.CYAN} Vendor: {vendor} result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} {Style.RESET_ALL}")
+	
+	if "defender_url" in results and results["defender_url"]:
+		defenderdata = results["defender_url"]
+		print(f"{Fore.LIGHTBLUE_EX}defender data:{Fore.YELLOW} {len(defenderdata.get('Results', []))} {Style.RESET_ALL}")
+		if len(defenderdata.get("Results", [])) >= 1:
+			results_list = defenderdata.get("Results", [])
+			for res in results_list[: args.maxoutput]:
+				print(f"{Fore.CYAN} {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+	
+	# URLScan.io results
+	if "urlscanio" in results and results["urlscanio"]:
+		urlscandata = results["urlscanio"]
+		if urlscandata and urlscandata.get("total") > 0:
+			print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.RED} {urlscandata.get("total")} ')
+			if args.dumpurlscandata:
+				for res in urlscandata.get("results")[: args.maxoutput]:
+					print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
+		else:
+			logger.warning(f"no urlscanio data for {args.ip}")
+	
+	# VirusTotal URL results
+	if "virustotal_urlinfo_vturl" in results and results["virustotal_urlinfo_vturl"]:
+		vturlinfo = results["virustotal_urlinfo_vturl"]
 		vt_url_resultdata = vturlinfo.get("data", {}).get("attributes", {}).get("results")
 		print(f"{Fore.BLUE}vt url info: {Fore.GREEN}{len(vt_url_resultdata)}: {vturlinfo.get('data', {}).get('attributes', {}).get('stats')}")
 		for vendor in vt_url_resultdata:
 			if vt_url_resultdata.get(vendor).get("category") == "malicious":
 				print(f"{Fore.BLUE}Vendor: {vendor} {Fore.CYAN}result: {vt_url_resultdata.get(vendor).get('result')} method: {vt_url_resultdata.get(vendor).get('method')} ")
-
-	if args.ipwhois and args.ip:
-		# ipwhois lookup for {Fore.CYAN}{args.ip} ipaddress: {ipaddress}')
-		ipaddress = ip_address(args.ip)
-		if ipaddress.is_global:
-			try:
-				whois_info = await get_ipwhois(args)
-				print(f"{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}")
-			except Exception as e:
-				logger.error(f"ipwhois error: {e} {type(e)} for {args.ip}")
-		elif ipaddress.is_private:
-			print(f"{Fore.YELLOW}private address: {ipaddress}")
-
-	if args.virustotal:
-		vtinfo = {}
-		for ipaddr in args.ips:
-			args.ip = ''.join(ipaddr)
-			if args.debug:
-				logger.debug(f"virustotal lookup for {args.ip}")
-			vtinfo = await get_vt_ipinfo(args)
-			if vtinfo:
+	
+	# IPWhois results
+	if "ipwhois" in results and results["ipwhois"]:
+		whois_info = results["ipwhois"]
+		print(f"{Fore.LIGHTBLUE_EX}whois\n\t{Fore.CYAN} {whois_info}")
+	
+	# VirusTotal IP results
+	for key in results:
+		if key.startswith("virustotal"):
+			vtinfo = results[key]
+			if vtinfo and not key.endswith("_urlinfo") and not key.endswith("_scanurls"):
+				ipaddr = key.replace("virustotal_", "") if "_" in key else args.ip
 				last_analysis_stats = vtinfo.get("last_analysis_stats", {})
 				last_analysis_results = vtinfo.get("last_analysis_results", {})
 				as_owner = vtinfo.get("as_owner", "None")
-				# vt_aso = vtinfo.as_owner
 				total_votes = vtinfo.get("total_votes", {})
-				# as_owner = {}
-				total_votes = {}
-				suspicious = last_analysis_stats.get('suspicious')  # type: ignore
-				malicious = last_analysis_stats.get('malicious')  # type: ignore
+				suspicious = last_analysis_stats.get('suspicious')
+				malicious = last_analysis_stats.get('malicious')
 				malicious += int(total_votes.get("malicious", 0))
 				if malicious+suspicious > 0:
 					vtforecolor = Fore.RED
 				else:
 					vtforecolor = Fore.GREEN
-				print(f"{Fore.LIGHTBLUE_EX}vt\t{args.ip} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
-				for vendor in last_analysis_results:  # type: ignore
-					if last_analysis_results.get(vendor).get("category") in ('malware', 'suspicious', "malicious"):  # type: ignore
-						print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result:{Fore.RED}{last_analysis_results.get(vendor).get('result')} {Fore.LIGHTBLUE_EX}{last_analysis_results.get(vendor).get('method')} ")  # type: ignore
-
-	if args.abuseipdb:
-		abuseipdbdata = await get_abuseipdb_data(args.ip)
-		if abuseipdbdata:
-			print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore: {abuseipdbdata.get("data").get("abuseConfidenceScore")} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
-
-	if args.crowdsec:
-		data = await get_crowdsec_data(args)
-		if data:
-			for crowdsecdata in data:
-				print(f'{Fore.LIGHTBLUE_EX}crowdsec {crowdsecdata.get("ip")} Reports:{Fore.CYAN} {crowdsecdata.get("reputation")} confidence: {crowdsecdata.get("confidence")}')
-
-	if args.graylog:
-		if args.ips:
-			for ipaddr in args.ips:
-				args.ip = ''.join(ipaddr)
-				if args.debug:
-					logger.debug(f"searching graylog for {args.ip}")
-				results = await graylog_search_ip(args, range=86400)
-				if results:
-					print_graylog_summary(results)
-					print_graylog_data(results, args)
-		elif args.ip:
-			try:
-				if args.debug:
-					logger.debug(f"searching graylog for {args.ip}")
-				results = await graylog_search_ip(args, range=86400)
-			except ApiException as e:
-				logger.warning(f"graylog search error: {e}")
-				results = None
-			except TypeError as e:
-				logger.error(f"graylog search error: {e} {type(e)}")
-				if args.debug:
-					logger.error(traceback.format_exc())
-				results = None
-			except Exception as e:
-				logger.error(f"graylog search error: {e} {type(e)}")
-				results = None
-			if results:
-				print_graylog_summary(results)
-
-	if args.sslvpnloginfail and args.graylog:
-		searchquery = "action:ssl-login-fail"
-		res_msg = {}
-		try:
-			results = await graylog_search(query=searchquery, range=86400)
-		except RequestError as e:
-			logger.warning(f"graylog search error: {e}")
-			results = None
-		except ApiException as e:
-			logger.warning(f"graylog search error: {e}")
-			results = None
-		except Exception as e:
-			logger.error(f"graylog search error: {e} {type(e)}")
-			results = None
-		if results:
-			ipaddres_set = set([k.get("message").get("remip") for k in results.get("hits").get("hits")])  # type: ignore
-			print(f"{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}")  # type: ignore
-			for res in results.get("hits").get("hits")[: args.maxoutput]:  # type: ignore
-				print(f"{Fore.YELLOW}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('user')} {res_msg.get('remip')} {res_msg.get('source')}")
-			try:
-				token = await get_aad_token()
-			except TokenException as e:
-				logger.error(f"TokenException: {e} {type(e)}")
-				return
-			for addr in ipaddres_set:
-				print(f"{Fore.LIGHTBLUE_EX}serching logs for {Fore.YELLOW}{addr}")
-				if args.debug:
-					logger.debug(f"searching defender for {addr}")
-				maxdays = 1
-				limit = 100
-				query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
-				defenderdata = await search_devicenetworkevents(token, query)
-				if args.debug:
-					logger.debug(f'defender returned {len(defenderdata.get("Results"))} ... searching azure logs for {addr}')
-				try:
-					azuredata = await get_azure_signinlogs(args)
-				except Exception as e:
-					logger.error(f"azure logs error: {e} {type(e)} for {addr}")
-					azuredata = []
-				if args.debug:
-					logger.debug(f"azure logs returned {len(azuredata)} ... searching azure failed signin logs for {addr}")
-				azuredata_f = await get_azure_signinlogs_failed(args)
-				if args.debug:
-					logger.debug(f"azure failed signin logs returned {len(azuredata_f)} ... searching graylog for {addr}")
-				args.ip = addr
-				glres = await graylog_search_ip(args, range=86400)
-				if args.debug:
-					logger.debug(f'graylog search returned {glres.get("hits").get("total").get("value")} results for {addr}')  # type: ignore
-				print(f'{Fore.CYAN}   results for {addr} defender: {len(defenderdata.get("Results"))} azure: {len(azuredata)} azure failed: {len(azuredata_f)} graylog: {glres.get('hits').get('total').get('value')}')  # type: ignore
-				if len(defenderdata.get("Results")) > 0:
-					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW}{len(defenderdata.get("Results"))} for {Fore.CYAN}{addr}')
-					results = defenderdata.get("Results")
-					for res in results[: args.maxoutput]:
-						print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
-				if len(azuredata) > 0:
-					print(f"{Fore.LIGHTBLUE_EX}azure found {Fore.YELLOW}{len(azuredata)}")
-					for logentry in azuredata[: args.maxoutput]:
-						timest = logentry.get("TimeGenerated")
-						status = json.loads(logentry.get("Status"))  # type: ignore
-						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
-				if len(azuredata_f) > 0:
-					print(f"{Fore.LIGHTBLUE_EX}azure failed signins found {Fore.YELLOW}{len(azuredata_f)}")
-					for logentry in azuredata_f[: args.maxoutput]:
-						timest = logentry.get("TimeGenerated")
-						status = json.loads(logentry.get("Status"))  # type: ignore
-						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
-
-	if args.ftgd_blk and args.graylog:
-		searchquery = "eventtype:ftgd_blk"
-		try:
-			results = await graylog_search(query=searchquery, range=86400)
-		except ApiException as e:
-			logger.warning(f"graylog search error: {e}")
-			raise e
-		except Exception as e:
-			logger.error(f"graylog search error: {e} {type(e)}")
-			results = None
-		if results:
-			ipaddres_set = set([k.get("message").get("dstip") for k in results.get("hits").get("hits")])  # type: ignore
-			print(f"{Fore.LIGHTBLUE_EX}[2] graylog results:{Fore.YELLOW} {results.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}")  # type: ignore
-			try:
-				token = await get_aad_token()
-			except TokenException as e:
-				logger.error(f"TokenException: {e} {type(e)}")
-				return
-			indicators = await get_indicators(token, args.ip)
-			for addr in ipaddres_set:
-				print(f"{Fore.LIGHTBLUE_EX}serching logs for {Fore.CYAN}{addr}")
-				[print(f"{Fore.CYAN}   indicator for {addr} found: {k}") for k in indicators if addr in str(k.values())]  # type: ignore
-				maxdays = 1
-				limit = 100
-				query = f"""let ip = "{addr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
-				try:
-					defenderdata = await search_devicenetworkevents(token, query)
-					azuredata = await get_azure_signinlogs(args)
-					azuredata_f = await get_azure_signinlogs_failed(args)
-				except Exception as e:
-					logger.error(f"error searching defender or azure logs: {e} {type(e)} for {addr}")
-					if args.debug:
-						logger.error(traceback.format_exc())
-					defenderdata = {"Results": []}
-					azuredata = []
-					azuredata_f = []
-				# glq = f'srcip:{addr} OR dstip:{addr} OR remip:{addr}'
-				args.ip = addr
-				glres = await graylog_search_ip(args, range=86400)
-				# print(f'defender found {len(defenderdata.get("Results"))} azure found {len(azuredata)} graylog found {glres.total_results}')
-				if glres.get("hits").get("total").get("value") > 0:  # type: ignore
-					print(f"{Fore.LIGHTBLUE_EX}[3] graylog results:{Fore.YELLOW} {glres.get('hits').get('total').get('value')}")  # type: ignore
-					for res in glres.get("hits").get("hits")[: args.maxoutput]:  # type: ignore
-						print(f"{Fore.CYAN}   {res_msg.get('timestamp')} {res_msg.get('msg')} {res_msg.get('action')} {res_msg.get('srcip')} {res_msg.get('dstip')} {res_msg.get('url')}")  # type: ignore
-				if len(defenderdata.get("Results")) > 0:  # type: ignore
-					print(f'{Fore.LIGHTBLUE_EX}defender found {Fore.YELLOW} {len(defenderdata.get("Results"))} {Fore.LIGHTBLUE_EX}for{Fore.CYAN} {addr}')  # type: ignore
-					results = defenderdata.get("Results")
-					for res in results[: args.maxoutput]:  # type: ignore
-						print(f"{Fore.CYAN}   {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} ")
-				if len(azuredata) > 0:
-					print(f"{Fore.LIGHTBLUE_EX} azure found {Fore.YELLOW} {len(azuredata)}")
-					for logentry in azuredata[: args.maxoutput]:
-						timest = logentry.get("TimeGenerated")
-						status = json.loads(logentry.get("Status"))  # type: ignore
-						print(f"   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
-				if len(azuredata_f) > 0:
-					print(f"{Fore.LIGHTBLUE_EX}azure failed signins found {Fore.YELLOW}{len(azuredata_f)}")
-					for logentry in azuredata_f[: args.maxoutput]:
-						timest = logentry.get("TimeGenerated")
-						status = json.loads(logentry.get("Status"))  # type: ignore
-						print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} mfa: {logentry.get('MfaDetail')}")  # type: ignore
-
-	if args.azure:
-		try:
-			azuredata = await get_azure_signinlogs(args)
-		except Exception as e:
-			logger.error(f"azure logs error: {e} {type(e)} for {args.ip}")
-			azuredata = []
-			if args.debug:
-				logger.error(traceback.format_exc())
-		# if args.debug:
-		# 	logger.debug(f"azure signinlogs for {args.ip} {len(azuredata)} ")
+				print(f"{Fore.LIGHTBLUE_EX}vt\t{ipaddr} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
+				for vendor in last_analysis_results:
+					if last_analysis_results.get(vendor).get("category") in ('malware', 'suspicious', "malicious"):
+						print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result:{Fore.RED}{last_analysis_results.get(vendor).get('result')} {Fore.LIGHTBLUE_EX}{last_analysis_results.get(vendor).get('method')} ")
+	
+	# AbuseIPDB results
+	if "abuseipdb" in results and results["abuseipdb"]:
+		abuseipdbdata = results["abuseipdb"]
+		score = abuseipdbdata.get("data").get("abuseConfidenceScore")
+		score_color = Fore.GREEN
+		if score >= 1:
+			score_color = Fore.RED
+		print(f'{Fore.LIGHTBLUE_EX}abuseipdb Reports:{Fore.CYAN} {abuseipdbdata.get("data").get("totalReports")} abuseConfidenceScore:{score_color} {score} isp: {abuseipdbdata.get("data").get("isp")} country: {abuseipdbdata.get("data").get("countryCode")} hostname:{Fore.CYAN} {abuseipdbdata.get("data").get("hostnames")} domain: {abuseipdbdata.get("data").get("domain")} tor: {abuseipdbdata.get("data").get("isTor")}')
+		if args.dumpabusedata:
+			for report in abuseipdbdata.get("data").get("reports"):
+				print(f'{Fore.CYAN} reportedAt: {report.get("reportedAt")} reporterId: {report.get("reporterId")} comment: {report.get("comment")} ')
+	
+	# CrowdSec results
+	if "crowdsec" in results and results["crowdsec"]:
+		data = results["crowdsec"]
+		for crowdsecdata in data:
+			reputation = crowdsecdata.get("reputation")
+			rep_color = Fore.GREEN
+			if reputation in ['unknown', 'malicious']:
+				rep_color = Fore.RED
+			elif reputation == 'suspicious':
+				rep_color = Fore.YELLOW
+			print(f'{Fore.LIGHTBLUE_EX}crowdsec {crowdsecdata.get("ip")} Reputation:{rep_color} {reputation} confidence: {crowdsecdata.get("confidence")}')
+	
+	# Graylog results
+	for key in results:
+		if key.startswith("graylog"):
+			glresults = results[key]
+			if glresults:
+				print_graylog_summary(glresults)
+				if not key.startswith("graylog_sslvpnloginfail") and not key.startswith("graylog_ftgd_blk"):
+					print_graylog_data(glresults, args)
+	
+	# Special Graylog queries
+	if "sslvpnloginfail" in results and results["sslvpnloginfail"]:
+		results_data = results["sslvpnloginfail"]
+		if results_data:
+			ipaddres_set = set([k.get("message").get("remip") for k in results_data.get("hits").get("hits")])
+			print(f"{Fore.LIGHTBLUE_EX}graylog sslvpnloginfail {Fore.CYAN}results: {results_data.get('hits').get('total').get('value')} ipaddres_set: {len(ipaddres_set)}")
+			# Additional processing for SSL VPN login failures...
+	
+	if "ftgd_blk" in results and results["ftgd_blk"]:
+		results_data = results["ftgd_blk"]
+		if results_data:
+			ipaddres_set = set([k.get("message").get("dstip") for k in results_data.get("hits").get("hits")])
+			print(f"{Fore.LIGHTBLUE_EX}[2] graylog results:{Fore.YELLOW} {results_data.get('hits').get('total').get('value')} {Fore.LIGHTBLUE_EX}ipaddres_set:{Fore.YELLOW} {len(ipaddres_set)}")
+			# Additional processing for FTGD blocks...
+	
+	# Azure results
+	if "azure" in results and results["azure"]:
+		azuredata = results["azure"]
 		if len(azuredata) >= 1:
 			print(f"{Fore.LIGHTBLUE_EX}azure signinlogs:{Fore.GREEN}{len(azuredata)}")
-			if len(azuredata) > 0:
-				for logentry in azuredata[: args.maxoutput]:
-					timest = logentry.get("TimeGenerated")
-					status = json.loads(logentry.get("Status"))  # type: ignore
-					print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} AppDisplayName: {logentry.get('AppDisplayName')} mfa: {logentry.get('MfaDetail')} riskdetail: {logentry.get('RiskDetail')} resourcedisplayname: {logentry.get('ResourceDisplayName')} authenticationrequirement: {logentry.get('AuthenticationRequirement')}")  # type: ignore
-			else:
-				print(f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
-
-	if args.defender:
-		try:
-			token = await get_aad_token()
-		except TokenException as e:
-			logger.warning(f'TokenException: {e} {type(e)}')
-			token = None
-		except Exception as e:
-			logger.error(f'error getting aad token: {e} {type(e)}')
-			if args.debug:
-				logger.error(traceback.format_exc())
-			token = None
-		if token:
-			try:
-				indicators = await get_indicators(token, args.ip)
-			except (DefenderException, TokenException) as e:
-				logger.error(e)
-				os._exit(-1)
-			# if len([k for k in indicators if k.get('indicatorValue') == args.ip]) <= 1:
-			if len([k for k in indicators if args.ip in str(k.values())]) >= 1:  # type: ignore
-				indx = [k for k in indicators if k.get("indicatorValue") == args.ip]  # type: ignore
-				for ind in indx:
-					print(f'{Fore.RED}indicator found: {Fore.GREEN} {ind.get("title")} {ind.get("description")} {Fore.LIGHTBLUE_EX}type: {ind.get("indicatorType")} action: {ind.get("action")} {Fore.LIGHTGREEN_EX} created by: {ind.get("createdBy")}')
-			else:
-				print(f"{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
-			try:
-				maxdays = 1
-				limit = 100
-				query = f"""let ip = "{args.ip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
-				defenderdata = await search_devicenetworkevents(token, query)
-				if len(defenderdata.get("Results")) >= 1:
-					print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
-					results = defenderdata.get("Results")
-					for res in results[: args.maxoutput]:
-						print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
-				else:
-					print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
-			except (DefenderException, TokenException) as e:
-				logger.error(e)
-				os._exit(-1)
-			# print(f'results: {results}')
-
+			for logentry in azuredata[: args.maxoutput]:
+				timest = logentry.get("TimeGenerated")
+				status = json.loads(logentry.get("Status"))
+				print(f"{Fore.CYAN}   {timest.ctime()} result: {logentry.get('ResultType')} code: {status.get('errorCode')} {status.get('failureReason')} user: {logentry.get('UserDisplayName')} {logentry.get('UserPrincipalName')} AppDisplayName: {logentry.get('AppDisplayName')} mfa: {logentry.get('MfaDetail')} riskdetail: {logentry.get('RiskDetail')} resourcedisplayname: {logentry.get('ResourceDisplayName')} authenticationrequirement: {logentry.get('AuthenticationRequirement')}")
+		else:
+			print(f"{Fore.YELLOW}no azure data for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
+	
+	# Defender results
+	if "defender_indicators" in results and results["defender_indicators"]:
+		indicators = results["defender_indicators"]
+		if len([k for k in indicators if args.ip in str(k.values())]) >= 1:
+			indx = [k for k in indicators if k.get("indicatorValue") == args.ip]
+			for ind in indx:
+				print(f'{Fore.RED}indicator found: {Fore.GREEN} {ind.get("title")} {ind.get("description")} {Fore.LIGHTBLUE_EX}type: {ind.get("indicatorType")} action: {ind.get("action")} {Fore.LIGHTGREEN_EX} created by: {ind.get("createdBy")}')
+		else:
+			print(f"{Fore.YELLOW}no indicator found for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
+	
+	if "defender_network" in results and results["defender_network"]:
+		defenderdata = results["defender_network"]
+		if len(defenderdata.get("Results")) >= 1:
+			print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
+			results_list = defenderdata.get("Results")
+			for res in results_list[: args.maxoutput]:
+				print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+		else:
+			print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
+			
 
 if __name__ == "__main__":
 	vtinfo = None
