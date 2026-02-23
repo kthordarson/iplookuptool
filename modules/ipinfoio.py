@@ -14,7 +14,8 @@ async def get_ipinfo(args):
 	"""
 	api_key = os.environ.get("IPINFOIO_APIKEY")
 	if not api_key:
-		logger.warning("missing ipinfo.io api key")
+		if args.debug:
+			logger.warning("missing ipinfo.io api key")
 	else:
 		# todo add api key to the url
 		url = f"https://ipinfo.io/{args.ip}/json"

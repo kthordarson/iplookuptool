@@ -14,7 +14,8 @@ async def get_ip2loc_data(args):
 	"""
 	api_key = os.environ.get("IP2LOCATION_APIKEY")
 	if not api_key:
-		logger.warning("missing ip2location.io api key")
+		if args.debug:
+			logger.warning("missing ip2location.io api key")
 		url = f"https://api.ip2location.io/?ip={args.ip}&format=json"
 	else:
 		url = f"https://api.ip2location.io/?key={api_key}&ip={args.ip}&format=json"
