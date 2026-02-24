@@ -532,7 +532,7 @@ async def process_results(results, args):
 			print(f"{Fore.BLUE}defender results:{Fore.GREEN} {len(defenderdata.get('Results'))}")
 			results_list = defenderdata.get("Results")
 			for res in results_list[: args.maxoutput]:
-				print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} remip: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+				print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {res.get('$table')} {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} RemoteIP: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} InitiatingProcessCommandLine: {res.get('InitiatingProcessCommandLine')} AdditionalFields: {res.get('AdditionalFields')}{Style.RESET_ALL}")
 		else:
 			print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
 			
