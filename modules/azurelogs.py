@@ -16,9 +16,9 @@ async def get_azure_signinlogs(args, resulttype=0):
         key_value = []
         async with DefaultAzureCredential() as creds:
             async with LogsQueryClient(creds) as logclient:
-                query = f'SigninLogs | where IPAddress == "{args.ip}" | take 100'
+                query = f'SigninLogs | where IPAddress == "{args.ip}"'
                 logs_resource_id = os.getenv('AZURE_LOGRESOURCE_ID')
-                response = await logclient.query_resource(logs_resource_id, query, timespan=timedelta(days=1))  # type: ignore
+                response = await logclient.query_resource(logs_resource_id, query, timespan=timedelta(days=30))  # type: ignore
                 if response.status == LogsQueryStatus.PARTIAL:
                     error = response.partial_error
                     # data = response.partial_data
