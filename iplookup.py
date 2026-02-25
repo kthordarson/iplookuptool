@@ -28,6 +28,10 @@ import urllib3
 urllib3.disable_warnings()
 
 # todo
+# https://app.abusix.com/guardian/intel/lookup/results?q=51.107.182.56
+# https://threatyeti.com/search?q=185.199.108.133
+# https://www.malwareurl.com/listing.php?domain=185.199.108.133
+# https://tweetfeed.live/search.html
 # add https://analytics.dugganusa.com/api/v1/stix-feed
 # https://analytics.dugganusa.com/api/v1/stix-feed/v2
 # curl -s https://analytics.dugganusa.com/api/v1/stix-feed |   jq -r '.objects[] | select(.type=="indicator") | .pattern' |   grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u
