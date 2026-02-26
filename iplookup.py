@@ -102,7 +102,8 @@ def get_args():
 	parser.add_argument("-az", "--azure", help="search azurelogs", action="store_true", default=False, dest="azure")
 	parser.add_argument("--skip_azure", help="skip azurelogs search", action="store_true", default=False, dest="skip_azure")
 
-	parser.add_argument("--maxoutput", help="limit output", default=10, type=int)
+	parser.add_argument("--maxoutput", help="limit output", default=10, type=int, dest="maxoutput")
+	parser.add_argument("--limit", help="limit output", default=100, type=int, dest="limit")
 	parser.add_argument("--all", help="use all lookups", action="store_true", default=False)
 	parser.add_argument("--dumpall", help="full dump", action="store_true", default=False)
 	parser.add_argument("--debug", help="debug", action="store_true", default=False)
@@ -141,16 +142,19 @@ async def main(args):
 			logger.error(f"[!] unhandled {e} {type(e)} for address {args.ip}")
 			return
 	elif args.ips:
+		temp_ips = []
 		for ip_ in args.ips:
 			ip = ''.join(ip_)
 			try:                
 				ipaddress = ip_address(''.join(ip)).exploded
+				temp_ips.append(ipaddress)
 			except ValueError as e:
 				logger.warning(f"[!] {e} {type(e)} for address {ip}")
 				raise e
 			except Exception as e:
 				logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
 				raise e
+		args.ips = temp_ips
 	
 	if args.all:
 		args.dnsdumpster = True
@@ -212,7 +216,7 @@ async def main(args):
 			results[module_name] = result
 			return result
 		except Exception as e:
-			logger.error(f"Error in {module_name}: {e}")
+			logger.error(f"{type(e)} in {module_name}: {e}")
 			results[module_name] = None
 			return None
 
@@ -264,7 +268,13 @@ async def main(args):
 				logger.error(traceback.format_exc())
 	
 	if args.urlscanio:
-		tasks.append(run_module("urlscanio", search_urlscanio(args.ip)))
+		if args.ips:
+			for ipaddr in args.ips:
+				args_copy = argparse.Namespace(**vars(args))
+				args_copy.ip = ''.join(ipaddr)
+				tasks.append(run_module(f"urlscanio_{ipaddr}", search_urlscanio(args_copy)))
+		elif args.ip:
+			tasks.append(run_module("urlscanio", search_urlscanio(args)))
 	
 	if args.vturl:
 		infourl_task = run_module("virustotal_scanurls_vturl", get_virustotal_scanurls(args.vturl))
@@ -290,7 +300,13 @@ async def main(args):
 			tasks.append(run_module("virustotal", get_vt_ipinfo(args)))
 	
 	if args.abuseipdb:
-		tasks.append(run_module("abuseipdb", get_abuseipdb_data(args.ip)))
+		if args.ips:
+			for ipaddr in args.ips:
+				args_copy = argparse.Namespace(**vars(args))
+				args_copy.ip = ''.join(ipaddr)
+				tasks.append(run_module(f"abuseipdb_{ipaddr}", get_abuseipdb_data(args_copy)))
+		elif args.ip:
+			tasks.append(run_module("abuseipdb", get_abuseipdb_data(args)))
 	
 	if args.crowdsec:
 		tasks.append(run_module("crowdsec", get_crowdsec_data(args)))
@@ -316,12 +332,24 @@ async def main(args):
 	if args.defender:
 		try:
 			token = await get_aad_token()
-			tasks.append(run_module("defender_indicators", get_indicators(token, args.ip)))
+			if args.ips:
+				for ipaddr in args.ips:
+					args_copy = argparse.Namespace(**vars(args))
+					args_copy.ip = ''.join(ipaddr)
+					tasks.append(run_module(f"defender_indicators_{ipaddr}", get_indicators(token, args_copy.ip)))
+			elif args.ip:
+				tasks.append(run_module("defender_indicators", get_indicators(token, args.ip)))
 			
-			maxdays = 1
-			limit = 100
-			query = f"""let ip = "{args.ip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {limit} """
-			tasks.append(run_module("defender_network", search_devicenetworkevents(token, query)))
+			maxdays = 30
+			if args.ips:
+				for ipaddr in args.ips:
+					query = f"""let ip = "{ipaddr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {args.limit} """
+					if args.debug:
+						logger.debug(f"defender query for {ipaddr}: {query}")
+					tasks.append(run_module(f"defender_network_{ipaddr}", search_devicenetworkevents(token, query)))
+			elif args.ip:
+				query = f"""let ip = "{args.ip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {args.limit} """
+				tasks.append(run_module("defender_network", search_devicenetworkevents(token, query)))
 		except (TokenException, DefenderException) as e:
 			logger.error(f'Error getting defender token: {e}')
 	
@@ -538,7 +566,10 @@ async def process_results(results, args):
 			for res in results_list[: args.maxoutput]:
 				print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {res.get('$table')} {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} RemoteIP: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} InitiatingProcessCommandLine: {res.get('InitiatingProcessCommandLine')} AdditionalFields: {res.get('AdditionalFields')}{Style.RESET_ALL}")
 		else:
-			print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
+			if args.ips:
+				print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{', '.join(args.ips)}{Style.RESET_ALL}")
+			elif args.ip:
+				print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
 			
 
 if __name__ == "__main__":
