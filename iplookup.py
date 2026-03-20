@@ -105,6 +105,7 @@ def get_args():
 	parser.add_argument("--maxoutput", help="limit output", default=10, type=int, dest="maxoutput")
 	parser.add_argument("--limit", help="limit output", default=100, type=int, dest="limit")
 	parser.add_argument("--all", help="use all lookups", action="store_true", default=False)
+	parser.add_argument("--localonly", help="use local lookups only", action="store_true", default=False)
 	parser.add_argument("--dumpall", help="full dump", action="store_true", default=False)
 	parser.add_argument("--debug", help="debug", action="store_true", default=False)
 
@@ -171,6 +172,11 @@ async def main(args):
 		args.urlscanio = True
 		args.ip2location = True
 		args.ipinfoio = True
+	
+	if args.localonly:
+		args.graylog = True
+		args.azure = True
+		args.defender = True
 	
 	if args.skip_alienvault:
 		args.alienvault = False
