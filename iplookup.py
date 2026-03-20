@@ -1,27 +1,23 @@
 #!/usr/bin/env python3
 import traceback
 import asyncio
-import os
 import argparse
 import json
 from loguru import logger
 from colorama import Fore, Style
 from ipaddress import ip_address
-from opensearchpy.exceptions import RequestError
-from myglapi.rest import ApiException
 from modules.virustotal import (get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo)
 from modules.abuseipdb import get_abuseipdb_data
 from modules.ipwhois import get_ipwhois
 from modules.graylog import graylog_search, graylog_search_ip, print_graylog_summary, print_graylog_data
 from modules.defender import (get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url)
-from modules.azurelogs import get_azure_signinlogs, get_azure_signinlogs_failed
+from modules.azurelogs import get_azure_signinlogs
 from modules.ip2loc import get_ip2loc_data
 from modules.ipinfoio import get_ipinfo
 from modules.urlscanio import search_urlscanio
 from modules.crowdsec import get_crowdsec_data
 from modules.alienvault import get_alienvault_data
 from modules.pulsedrive import get_pulsedrive_data
-from modules.dnsdumpster import get_dnsdumpster
 
 import urllib3
 
