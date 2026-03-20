@@ -4,7 +4,7 @@ import aiohttp
 
 ABUSEIPDBAPIKEY = os.environ.get("ABUSEIPDBAPIKEY")
 
-async def get_abuseipdb_data(ipaddr, maxdays=30):
+async def get_abuseipdb_data(args, maxdays=30):
 	# https://www.abuseipdb.com/api.html
 	# https://www.abuseipdb.com/check/[IP]/json?key=[API_KEY]&days=[DAYS]
 	if not ABUSEIPDBAPIKEY:
@@ -13,7 +13,7 @@ async def get_abuseipdb_data(ipaddr, maxdays=30):
 	headers = {"Key": ABUSEIPDBAPIKEY, "Accept": "application/json"}
 	params = {
 		"maxAgeInDays": maxdays,
-		"ipAddress": ipaddr,
+		"ipAddress": args.ip,
 		"verbose": "True",
 	}
 
@@ -32,16 +32,16 @@ async def get_abuseipdb_data(ipaddr, maxdays=30):
 					if jsonresp:
 						data = jsonresp
 						data["url"] = (
-							f"https://www.abuseipdb.com/check/{ipaddr}/json?key={ABUSEIPDBAPIKEY}&days={maxdays}&verbose"
+							f"https://www.abuseipdb.com/check/{args.ip}/json?key={ABUSEIPDBAPIKEY}&days={maxdays}&verbose"
 						)
 						return data
 					else:
 						logger.error(
-							f"Unknown error for {ipaddr} json: {jsonresp}"
+							f"Unknown error for {args.ip} json: {jsonresp}"
 						)
 						return None
 				else:
-					logger.warning(f"[!] {response.status} {response.reason} for {ipaddr}")
+					logger.warning(f"[!] {response.status} {response.reason} for {args.ip}")
 					return None
 	except Exception as e:
 		logger.error(f"[!] {e} {type(e)}")

@@ -494,22 +494,16 @@ def print_graylog_data(results, args):
 				print(f"    {Fore.YELLOW}Hour {hour:02d}: {count} events")
 
 		print(f"{Fore.GREEN}[1] graylog results:{Fore.LIGHTGREEN_EX} {results.get('hits').get('total').get('value')}")
-		# for res in results.get("hits").get("hits")[: args.maxoutput]:
 		index_list = list(set([k.get('_index') for k in results.get("hits").get("hits")]))
-		# index_temp_name_list = list(set([k.split('_')[0] for k in index_list]))
-		# index_temp_idx_list = list(set([k.split('_')[1] for k in index_list]))
-		# indextmp = [{'idxname':k.split('_')[0],'idxnum':k.split('_')[1]} for k in index_list]
-		for index_name in index_list:
+		for name_idx, index_name in enumerate(index_list):
 			index_hits = [k for k in results.get("hits").get("hits") if k['_index'] == index_name]
-			print(f"{Fore.LIGHTGREEN_EX}{index_name} hits: {Fore.CYAN}{len(index_hits)} {Fore.RESET} ")
-			# for idx,res in enumerate(results.get("hits").get("hits")):
+			print(f"{Fore.LIGHTGREEN_EX}[{name_idx}/{len(index_list)}]{Fore.LIGHTBLUE_EX}{index_name} hits:{Fore.CYAN}{len(index_hits)} {Fore.RESET} ")
 			for idx,res in enumerate(index_hits):
 				res_idx = res.get("_index")
 				res_msg = res.get("_source")
 				if idx >= args.maxoutput:
 					if args.debug:
 						logger.info(f"graylog max {idx} output {args.maxoutput} reached for index {index_name}")
-						# logger.debug(f'res_msgkeys: {res_msg.keys()} ')
 					break
 				if res_idx != index_name:
 					if args.debug:
@@ -528,9 +522,9 @@ def print_graylog_data(results, args):
 						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} ftp_action:{res_msg.get('ftp_action')} ftp_user:{res_msg.get('ftp_user')} {Fore.CYAN} client_ipaddress:{res_msg.get('client_ipaddress')}")
 					elif "azsignin" in res_idx:
 						# print(f'res: {res_msg.keys()}')
-						print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} res:{Fore.LIGHTBLUE_EX}{res_msg.get('ResultDescription')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} res:{Fore.LIGHTBLUE_EX}{res_msg.get('ResultDescription')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {blkcolor}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')}")
 					elif 'azaudit' in res_idx:
-						print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} ActivityDisplayName:{Fore.LIGHTBLUE_EX}{res_msg.get('ActivityDisplayName')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {Fore.LIGHTBLUE_EX}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')} ResultSignature: {res_msg.get('ResultSignature')}")
+						print(f"\t{Fore.BLUE}ts:{res_msg.get('gl2_receive_timestamp')} ActivityDisplayName:{Fore.LIGHTBLUE_EX}{res_msg.get('ActivityDisplayName')} app:{Fore.LIGHTGREEN_EX}{res_msg.get('AppdisplayName')} ip:{Fore.LIGHTBLUE_EX}{res_msg.get('IpAddress')} id:{Fore.LIGHTCYAN_EX}{res_msg.get('Identity')} resource:{Fore.GREEN}{res_msg.get('ResourceDisplayName')} blacklisted: {blkcolor}{res_msg.get('blacklisted')} Location: {res_msg.get('Location')} ResultSignature: {res_msg.get('ResultSignature')}")
 					elif "msgraph" in res_idx:
 						print(f"\t{Fore.CYAN}{res_msg.get('gl2_receive_timestamp')} {Fore.BLUE}method: {Fore.LIGHTBLUE_EX}{res_msg.get('RequestMethod')} dispname:{res_msg.get('displayName')} ip:{res_msg.get('IpAddress')} dstip:{res_msg.get('dstip')} {res_msg.get('RequestUri')}")
 					elif "securityaudit" in res_idx:

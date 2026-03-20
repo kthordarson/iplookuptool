@@ -6,12 +6,13 @@ import asyncio
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.SSLError)  # type: ignore
-
+# https://urlscan.io/ip/51.107.182.56
+# https://urlscan.io/search/#ip:%2251.107.182.56%22
 async def xxxget_urlscanio_data(args):
 	# https://urlscan.io/docs/api/
 	pass
 
-async def search_urlscanio(remoteurl):
+async def search_urlscanio(args):
 	URLSCANIOAPIKEY = os.environ.get("URLSCANIOAPIKEY")
 	if not URLSCANIOAPIKEY:
 		logger.warning("missing urlscan.io api key")
@@ -20,10 +21,9 @@ async def search_urlscanio(remoteurl):
 		'Authorization': 'Basic',
 		'API-Key': URLSCANIOAPIKEY}
 	params = {
-		'q': remoteurl,
+		'q': args.ip,
 			}
 	url = 'https://urlscan.io/api/v1/search/'
-
 	try:
 		# Create SSL context that doesn't verify certificates (equivalent to verify=False)
 		ssl_context = aiohttp.TCPConnector(ssl=False)
@@ -36,17 +36,17 @@ async def search_urlscanio(remoteurl):
 					return all_json
 				except Exception as e:
 					response_text = await response.text()
-					logger.error(f"{e} {url} {remoteurl} response: {response_text}")
+					logger.error(f"{e} {url} {args.ip} response: {response_text}")
 					return None
 	except asyncio.TimeoutError as e:
-		logger.error(f"{e} for {url} {remoteurl}")
+		logger.error(f"{e} for {url} {args.ip}")
 		return None
 	except aiohttp.ClientSSLError as e:
-		logger.error(f"{e} {url} {remoteurl}")
+		logger.error(f"{e} {url} {args.ip}")
 		return None
 	except aiohttp.ClientError as e:
-		logger.error(f"{e} {url} {remoteurl}")
+		logger.error(f"{e} {url} {args.ip}")
 		return None
 	except Exception as e:
-		logger.error(f"Unexpected error: {e} {url} {remoteurl}")
+		logger.error(f"Unexpected error: {e} {url} {args.ip}")
 		return None
