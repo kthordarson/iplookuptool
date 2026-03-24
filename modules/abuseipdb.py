@@ -22,7 +22,6 @@ async def get_abuseipdb_data(args, maxdays=30):
 			async with session.get(
 				"https://api.abuseipdb.com/api/v2/check", headers=headers, params=params
 			) as response:
-				# response = requests.get(f'https://www.abuseipdb.com/check/{ipaddr}/json?key={ABUSEIPDBAPIKEY}&days={maxdays}&verbose', headers=headers, params=params)
 				if response.status == 200:
 					try:
 						jsonresp = await response.json()

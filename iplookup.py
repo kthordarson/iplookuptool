@@ -103,6 +103,7 @@ def get_args():
 	parser.add_argument("--skip_azure", help="skip azurelogs search", action="store_true", default=False, dest="skip_azure")
 
 	parser.add_argument("--maxoutput", help="limit output", default=10, type=int, dest="maxoutput")
+	parser.add_argument("--maxdays", help="set maxdays", default=10, type=int, dest="maxdays")
 	parser.add_argument("--limit", help="limit output", default=100, type=int, dest="limit")
 	parser.add_argument("--all", help="use all lookups", action="store_true", default=False)
 	parser.add_argument("--localonly", help="use local lookups only", action="store_true", default=False)
@@ -238,21 +239,21 @@ async def main(args):
 		tasks.append(run_module("alienvault", get_alienvault_data(args), results))
 	
 	if args.ipinfoio:
-		if args.ips:
+		if args.action == 'ip' and args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
 				tasks.append(run_module(f"ipinfoio_{ipaddr}", get_ipinfo(args_copy), results))
-		elif args.ip:
+		elif args.action == 'ip' and args.ip:
 			tasks.append(run_module("ipinfoio", get_ipinfo(args), results))
 	
 	if args.ip2location:
-		if args.ips:
+		if args.action == 'ip' and args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
 				tasks.append(run_module(f"ip2location_{ipaddr}", get_ip2loc_data(args_copy), results))
-		elif args.ip:
+		elif args.action == 'ip' and args.ip:
 			tasks.append(run_module("ip2location", get_ip2loc_data(args), results))
 	if args.action == 'url':
 		if args.url:
@@ -268,30 +269,23 @@ async def main(args):
 			# Defender URL search
 			try:
 				token = await get_aad_token()
-				tasks.append(run_module("defender_url", search_remote_url(args.url, token, limit=100, maxdays=3), results))
+				tasks.append(run_module("defender_url", search_remote_url(args.url, token, limit=100, maxdays=args.maxdays), results))
 			except (DefenderException, TokenException) as e:
 				logger.error(f'[!] Error getting defender data: {e} {type(e)} for url {args.url}')
 				if args.debug:
 					logger.error(traceback.format_exc())
-	
-		if args.vturl:
-			infourl_task = run_module("virustotal_scanurls_vturl", get_virustotal_scanurls(args.vturl), results)
-			tasks.append(infourl_task)
-			infourl = await infourl_task
-			if infourl:
-				tasks.append(run_module("virustotal_urlinfo_vturl", get_virustotal_urlinfo(infourl), results))
 
 	if args.urlscanio:
-		if args.ips:
+		if args.action == 'ip' and args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
 				tasks.append(run_module(f"urlscanio_{ipaddr}", search_urlscanio(args_copy), results))
-		elif args.ip:
+		elif args.action == 'ip' and args.ip:
 			tasks.append(run_module("urlscanio", search_urlscanio(args), results))
 	
 	
-	if args.ipwhois and args.ip:
+	if args.ipwhois and args.action == 'ip' and args.ip:
 		ipaddress = ip_address(args.ip)
 		if ipaddress.is_global:
 			tasks.append(run_module("ipwhois", get_ipwhois(args), results))
@@ -299,33 +293,33 @@ async def main(args):
 			print(f"{Fore.YELLOW}private address: {ipaddress}")
 	
 	if args.virustotal:
-		if args.ips:
+		if args.action == 'ip' and args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
 				tasks.append(run_module(f"virustotal_{ipaddr}", get_vt_ipinfo(args_copy), results))
-		elif args.ip:
+		elif args.action == 'ip' and args.ip:
 			tasks.append(run_module("virustotal", get_vt_ipinfo(args), results))
 	
 	if args.abuseipdb:
-		if args.ips:
+		if args.action == 'ip' and args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
 				tasks.append(run_module(f"abuseipdb_{ipaddr}", get_abuseipdb_data(args_copy), results))
-		elif args.ip:
+		elif args.action == 'ip' and args.ip:
 			tasks.append(run_module("abuseipdb", get_abuseipdb_data(args), results))
 	
 	if args.crowdsec:
 		tasks.append(run_module("crowdsec", get_crowdsec_data(args), results))
 	
 	if args.graylog:
-		if args.ips:
+		if args.action == 'ip' and args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
 				tasks.append(run_module(f"graylog_{ipaddr}", graylog_search_ip(args_copy, range=86400), results))
-		elif args.ip:
+		elif args.action == 'ip' and args.ip:
 			tasks.append(run_module("graylog", graylog_search_ip(args, range=86400), results))
 	
 	if args.sslvpnloginfail and args.graylog:
@@ -340,22 +334,22 @@ async def main(args):
 	if args.defender:
 		try:
 			token = await get_aad_token()
-			if args.ips:
+			if args.action == 'ip' and args.ips:
 				for ipaddr in args.ips:
 					args_copy = argparse.Namespace(**vars(args))
 					args_copy.ip = ''.join(ipaddr)
 					tasks.append(run_module(f"defender_indicators_{ipaddr}", get_indicators(token, args_copy.ip), results))
-			elif args.ip:
+			elif args.action == 'ip' and args.ip:
 				tasks.append(run_module("defender_indicators", get_indicators(token, args.ip), results))
 			
 			maxdays = 30
-			if args.ips:
+			if args.action == 'ip' and args.ips:
 				for ipaddr in args.ips:
 					query = f"""let ip = "{ipaddr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {args.limit} """
 					if args.debug:
 						logger.debug(f"defender query for {ipaddr}: {query}")
 					tasks.append(run_module(f"defender_network_{ipaddr}", search_devicenetworkevents(token, query), results))
-			elif args.ip:
+			elif args.action == 'ip' and args.ip:
 				query = f"""let ip = "{args.ip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {args.limit} """
 				tasks.append(run_module("defender_network", search_devicenetworkevents(token, query), results))
 		except (TokenException, DefenderException) as e:
@@ -446,8 +440,8 @@ async def process_results(results, args):
 		print(f"{Fore.LIGHTBLUE_EX}defender data:{Fore.YELLOW} {len(defenderdata.get('Results', []))} {Style.RESET_ALL}")
 		if len(defenderdata.get("Results", [])) >= 1:
 			results_list = defenderdata.get("Results", [])
-			for res in results_list[: args.maxoutput]:
-				print(f"{Fore.CYAN} {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
+			for idx,res in enumerate(results_list[: args.maxoutput]):
+				print(f"{Fore.CYAN}[{idx}/{len(results_list)}]{Fore.LIGHTBLUE_EX} {res.get('Timestamp')} device: {res.get('DeviceName')} action: {res.get('ActionType')} url: {res.get('RemoteUrl')} user: {res.get('InitiatingProcessAccountName')} {res.get('InitiatingProcessAccountUpn')} {Style.RESET_ALL}")
 	
 	# URLScan.io results
 	if "urlscanio" in results and results["urlscanio"]:
@@ -455,8 +449,8 @@ async def process_results(results, args):
 		if urlscandata and urlscandata.get("total") > 0:
 			print(f'{Fore.LIGHTBLUE_EX}urlscanio {Fore.LIGHTBLACK_EX}results:{Fore.RED} {urlscandata.get("total")} ')
 			if args.dumpurlscandata:
-				for res in urlscandata.get("results")[: args.maxoutput]:
-					print(f"{Fore.CYAN} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
+				for idx,res in enumerate(urlscandata.get("results")[: args.maxoutput]):
+					print(f"{Fore.CYAN}[{idx}/{len(urlscandata.get('results'))}]{Fore.LIGHTBLUE_EX} time: {res.get('task').get('time')} vis: {res.get('task').get('visibility')} url: {res.get('task').get('url')} ")
 		else:
 			logger.warning(f"no urlscanio data for {args.ip}")
 	
@@ -479,22 +473,25 @@ async def process_results(results, args):
 		if key.startswith("virustotal"):
 			vtinfo = results[key]
 			if vtinfo and not key.endswith("_urlinfo") and not key.endswith("_scanurls"):
-				ipaddr = key.replace("virustotal_", "") if "_" in key else args.ip
-				last_analysis_stats = vtinfo.get("last_analysis_stats", {})
-				last_analysis_results = vtinfo.get("last_analysis_results", {})
-				as_owner = vtinfo.get("as_owner", "None")
-				total_votes = vtinfo.get("total_votes", {})
-				suspicious = last_analysis_stats.get('suspicious')
-				malicious = last_analysis_stats.get('malicious')
-				malicious += int(total_votes.get("malicious", 0))
-				if malicious+suspicious > 0:
-					vtforecolor = Fore.RED
-				else:
-					vtforecolor = Fore.GREEN
-				print(f"{Fore.LIGHTBLUE_EX}vt\t{ipaddr} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
-				for vendor in last_analysis_results:
-					if last_analysis_results.get(vendor).get("category") in ('malware', 'suspicious', "malicious"):
-						print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result:{Fore.RED}{last_analysis_results.get(vendor).get('result')} {Fore.LIGHTBLUE_EX}{last_analysis_results.get(vendor).get('method')} ")
+				try:
+					ipaddr = key.replace("virustotal_", "") if "_" in key else args.ip
+					last_analysis_stats = vtinfo.get("last_analysis_stats", {})
+					last_analysis_results = vtinfo.get("last_analysis_results", {})
+					as_owner = vtinfo.get("as_owner", "None")
+					total_votes = vtinfo.get("total_votes", {})
+					suspicious = last_analysis_stats.get('suspicious')
+					malicious = last_analysis_stats.get('malicious')
+					malicious += int(total_votes.get("malicious", 0))
+					if malicious+suspicious > 0:
+						vtforecolor = Fore.RED
+					else:
+						vtforecolor = Fore.GREEN
+					print(f"{Fore.LIGHTBLUE_EX}vt\t{ipaddr} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
+					for vendor in last_analysis_results:
+						if last_analysis_results.get(vendor).get("category") in ('malware', 'suspicious', "malicious"):
+							print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result:{Fore.RED}{last_analysis_results.get(vendor).get('result')} {Fore.LIGHTBLUE_EX}{last_analysis_results.get(vendor).get('method')} ")
+				except Exception as e:
+					logger.error(f"error processing VirusTotal data for {key}: {e} {type(e)}")
 	
 	# AbuseIPDB results
 	if "abuseipdb" in results and results["abuseipdb"]:
@@ -574,7 +571,7 @@ async def process_results(results, args):
 			for res in results_list[: args.maxoutput]:
 				print(f"{Fore.LIGHTBLUE_EX}{'':2} {res.get('Timestamp')}\n     {res.get('$table')} {Fore.CYAN}device: {res.get('DeviceName')} user: {res.get('InitiatingProcessAccountName')} RemoteIP: {res.get('RemoteIP')}:{res.get('RemotePort')} localip: {res.get('LocalIP')} action: {res.get('ActionType')} \n     remoteurl: {res.get('RemoteUrl')} upn:{res.get('InitiatingProcessAccountUpn')} InitiatingProcessCommandLine: {res.get('InitiatingProcessCommandLine')} AdditionalFields: {res.get('AdditionalFields')}{Style.RESET_ALL}")
 		else:
-			if args.ips:
+			if args.action == 'ip' and args.ips:
 				print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{', '.join(args.ips)}{Style.RESET_ALL}")
 			elif args.ip:
 				print(f"{Fore.YELLOW}no defender results for {Fore.GREEN}{args.ip}{Style.RESET_ALL}")
