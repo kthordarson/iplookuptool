@@ -42,11 +42,15 @@ urllib3.disable_warnings()
 
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
-	parser.add_argument("-ip", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
-	parser.add_argument("-ipfile", help="filename containing ipaddresses/hosts to lookup", type=str, metavar="filename")
-	parser.add_argument("-ips", help="list of ipaddress/host to lookup", type=list, default=[], metavar="ipaddrlist", nargs='+')
-	parser.add_argument("--url", help="url to lookup", type=str, metavar="url")
-	parser.add_argument("--vturl", help="virustotal url lookup", type=str)
+	sub_parser = parser.add_subparsers(dest='action', help='Action to perform')
+	ip_parser = sub_parser.add_parser('ip', help='Lookup information about an IP address')
+	ip_parser.add_argument("-ip", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
+	ip_parser.add_argument("-ipfile", help="filename containing ipaddresses/hosts to lookup", type=str, metavar="filename")
+	ip_parser.add_argument("-ips", help="list of ipaddress/host to lookup", type=list, default=[], metavar="ipaddrlist", nargs='+')
+
+	url_parser = sub_parser.add_parser('url', help='Lookup information about a URL')
+	url_parser.add_argument("--url", help="url to lookup", type=str, metavar="url")
+	url_parser.add_argument("--vturl", help="virustotal url lookup", type=str)
 
 	parser.add_argument("--ipwhois", help="ipwhois lookup", action="store_true", default=False)
 	parser.add_argument("--skip_ipwhois", help="skip ipwhois lookup", action="store_true", default=False, dest="skip_ipwhois")
@@ -108,50 +112,62 @@ def get_args():
 	args = parser.parse_args()
 	return parser, args
 
+# Helper function to run module and store results
+async def run_module(module_name, coro, results):
+	try:
+		result = await coro
+		results[module_name] = result
+		return result
+	except Exception as e:
+		logger.error(f"{type(e)} in {module_name}: {e}")
+		results[module_name] = None
+		return None
+
 async def main(args):
-	if args.ipfile:
-		try:
-			with open(args.ipfile, 'r') as f:
-				file_ips = [line.strip() for line in f if line.strip() if line.count('.') == 3]
-				args.ips.extend(file_ips)
-			for ip in args.ips:
-				try:
-					ipaddress = ip_address(ip).exploded
+	if args.action == 'ip':
+		if args.ipfile:
+			try:
+				with open(args.ipfile, 'r') as f:
+					file_ips = [line.strip() for line in f if line.strip() if line.count('.') == 3]
+					args.ips.extend(file_ips)
+				for ip in args.ips:
+					try:
+						ipaddress = ip_address(ip).exploded
+					except ValueError as e:
+						logger.warning(f"[!] {e} {type(e)} for address {ip}")
+						raise e
+					except Exception as e:
+						logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
+						raise e
+					if args.debug:
+						logger.debug(f"loaded {len(file_ips)} ipaddresses from {args.ipfile}")
+			except Exception as e:
+				logger.error(f"error reading ipfile {args.ipfile}: {e} {type(e)}")
+				return
+		elif args.ip:
+			try:
+				ipaddress = ip_address(args.ip).exploded
+				args.ip = ipaddress
+			except ValueError as e:
+				logger.warning(f"[!] {e} {type(e)} for address {args.ip}")
+				return
+			except Exception as e:
+				logger.error(f"[!] unhandled {e} {type(e)} for address {args.ip}")
+				return
+		elif args.ips:
+			temp_ips = []
+			for ip_ in args.ips:
+				ip = ''.join(ip_)
+				try:                
+					ipaddress = ip_address(''.join(ip)).exploded
+					temp_ips.append(ipaddress)
 				except ValueError as e:
 					logger.warning(f"[!] {e} {type(e)} for address {ip}")
 					raise e
 				except Exception as e:
 					logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
 					raise e
-				if args.debug:
-					logger.debug(f"loaded {len(file_ips)} ipaddresses from {args.ipfile}")
-		except Exception as e:
-			logger.error(f"error reading ipfile {args.ipfile}: {e} {type(e)}")
-			return
-	elif args.ip:
-		try:
-			ipaddress = ip_address(args.ip).exploded
-			args.ip = ipaddress
-		except ValueError as e:
-			logger.warning(f"[!] {e} {type(e)} for address {args.ip}")
-			return
-		except Exception as e:
-			logger.error(f"[!] unhandled {e} {type(e)} for address {args.ip}")
-			return
-	elif args.ips:
-		temp_ips = []
-		for ip_ in args.ips:
-			ip = ''.join(ip_)
-			try:                
-				ipaddress = ip_address(''.join(ip)).exploded
-				temp_ips.append(ipaddress)
-			except ValueError as e:
-				logger.warning(f"[!] {e} {type(e)} for address {ip}")
-				raise e
-			except Exception as e:
-				logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
-				raise e
-		args.ips = temp_ips
+			args.ips = temp_ips
 	
 	if args.all:
 		args.dnsdumpster = True
@@ -211,84 +227,74 @@ async def main(args):
 	tasks = []
 	results = {}
 
-	# Helper function to run module and store results
-	async def run_module(module_name, coro):
-		try:
-			result = await coro
-			results[module_name] = result
-			return result
-		except Exception as e:
-			logger.error(f"{type(e)} in {module_name}: {e}")
-			results[module_name] = None
-			return None
-
 	# Add tasks based on enabled modules
 	if args.dnsdumpster:
 		pass  # tasks.append(run_module("dnsdumpster", get_dnsdumpster(args)))  # todo finish
 
 	if args.pulsedrive:
-		tasks.append(run_module("pulsedrive", get_pulsedrive_data(args)))
+		tasks.append(run_module("pulsedrive", get_pulsedrive_data(args), results))
 	
 	if args.alienvault:
-		tasks.append(run_module("alienvault", get_alienvault_data(args)))
+		tasks.append(run_module("alienvault", get_alienvault_data(args), results))
 	
 	if args.ipinfoio:
 		if args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
-				tasks.append(run_module(f"ipinfoio_{ipaddr}", get_ipinfo(args_copy)))
+				tasks.append(run_module(f"ipinfoio_{ipaddr}", get_ipinfo(args_copy), results))
 		elif args.ip:
-			tasks.append(run_module("ipinfoio", get_ipinfo(args)))
+			tasks.append(run_module("ipinfoio", get_ipinfo(args), results))
 	
 	if args.ip2location:
 		if args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
-				tasks.append(run_module(f"ip2location_{ipaddr}", get_ip2loc_data(args_copy)))
+				tasks.append(run_module(f"ip2location_{ipaddr}", get_ip2loc_data(args_copy), results))
 		elif args.ip:
-			tasks.append(run_module("ip2location", get_ip2loc_data(args)))
+			tasks.append(run_module("ip2location", get_ip2loc_data(args), results))
+	if args.action == 'url':
+		if args.url:
+			# URL-specific tasks
+			infourl_task = run_module("virustotal_scanurls", get_virustotal_scanurls(args.url), results)
+			tasks.append(infourl_task)
+			
+			# Run this one first to get the URL for the next task
+			infourl = await infourl_task
+			if infourl:
+				tasks.append(run_module("virustotal_urlinfo", get_virustotal_urlinfo(infourl), results))
+			
+			# Defender URL search
+			try:
+				token = await get_aad_token()
+				tasks.append(run_module("defender_url", search_remote_url(args.url, token, limit=100, maxdays=3), results))
+			except (DefenderException, TokenException) as e:
+				logger.error(f'[!] Error getting defender data: {e} {type(e)} for url {args.url}')
+				if args.debug:
+					logger.error(traceback.format_exc())
 	
-	if args.url:
-		# URL-specific tasks
-		infourl_task = run_module("virustotal_scanurls", get_virustotal_scanurls(args.url))
-		tasks.append(infourl_task)
-		
-		# Run this one first to get the URL for the next task
-		infourl = await infourl_task
-		if infourl:
-			tasks.append(run_module("virustotal_urlinfo", get_virustotal_urlinfo(infourl)))
-		
-		# Defender URL search
-		try:
-			token = await get_aad_token()
-			tasks.append(run_module("defender_url", search_remote_url(args.url, token, limit=100, maxdays=3)))
-		except (DefenderException, TokenException) as e:
-			logger.error(f'[!] Error getting defender data: {e} {type(e)} for url {args.url}')
-			if args.debug:
-				logger.error(traceback.format_exc())
-	
+		if args.vturl:
+			infourl_task = run_module("virustotal_scanurls_vturl", get_virustotal_scanurls(args.vturl), results)
+			tasks.append(infourl_task)
+			infourl = await infourl_task
+			if infourl:
+				tasks.append(run_module("virustotal_urlinfo_vturl", get_virustotal_urlinfo(infourl), results))
+
 	if args.urlscanio:
 		if args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
-				tasks.append(run_module(f"urlscanio_{ipaddr}", search_urlscanio(args_copy)))
+				tasks.append(run_module(f"urlscanio_{ipaddr}", search_urlscanio(args_copy), results))
 		elif args.ip:
-			tasks.append(run_module("urlscanio", search_urlscanio(args)))
+			tasks.append(run_module("urlscanio", search_urlscanio(args), results))
 	
-	if args.vturl:
-		infourl_task = run_module("virustotal_scanurls_vturl", get_virustotal_scanurls(args.vturl))
-		tasks.append(infourl_task)
-		infourl = await infourl_task
-		if infourl:
-			tasks.append(run_module("virustotal_urlinfo_vturl", get_virustotal_urlinfo(infourl)))
 	
 	if args.ipwhois and args.ip:
 		ipaddress = ip_address(args.ip)
 		if ipaddress.is_global:
-			tasks.append(run_module("ipwhois", get_ipwhois(args)))
+			tasks.append(run_module("ipwhois", get_ipwhois(args), results))
 		elif ipaddress.is_private:
 			print(f"{Fore.YELLOW}private address: {ipaddress}")
 	
@@ -297,39 +303,39 @@ async def main(args):
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
-				tasks.append(run_module(f"virustotal_{ipaddr}", get_vt_ipinfo(args_copy)))
+				tasks.append(run_module(f"virustotal_{ipaddr}", get_vt_ipinfo(args_copy), results))
 		elif args.ip:
-			tasks.append(run_module("virustotal", get_vt_ipinfo(args)))
+			tasks.append(run_module("virustotal", get_vt_ipinfo(args), results))
 	
 	if args.abuseipdb:
 		if args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
-				tasks.append(run_module(f"abuseipdb_{ipaddr}", get_abuseipdb_data(args_copy)))
+				tasks.append(run_module(f"abuseipdb_{ipaddr}", get_abuseipdb_data(args_copy), results))
 		elif args.ip:
-			tasks.append(run_module("abuseipdb", get_abuseipdb_data(args)))
+			tasks.append(run_module("abuseipdb", get_abuseipdb_data(args), results))
 	
 	if args.crowdsec:
-		tasks.append(run_module("crowdsec", get_crowdsec_data(args)))
+		tasks.append(run_module("crowdsec", get_crowdsec_data(args), results))
 	
 	if args.graylog:
 		if args.ips:
 			for ipaddr in args.ips:
 				args_copy = argparse.Namespace(**vars(args))
 				args_copy.ip = ''.join(ipaddr)
-				tasks.append(run_module(f"graylog_{ipaddr}", graylog_search_ip(args_copy, range=86400)))
+				tasks.append(run_module(f"graylog_{ipaddr}", graylog_search_ip(args_copy, range=86400), results))
 		elif args.ip:
-			tasks.append(run_module("graylog", graylog_search_ip(args, range=86400)))
+			tasks.append(run_module("graylog", graylog_search_ip(args, range=86400), results))
 	
 	if args.sslvpnloginfail and args.graylog:
-		tasks.append(run_module("sslvpnloginfail", graylog_search(query="action:ssl-login-fail", range=86400)))
+		tasks.append(run_module("sslvpnloginfail", graylog_search(query="action:ssl-login-fail", range=86400), results))
 	
 	if args.ftgd_blk and args.graylog:
-		tasks.append(run_module("ftgd_blk", graylog_search(query="eventtype:ftgd_blk", range=86400)))
+		tasks.append(run_module("ftgd_blk", graylog_search(query="eventtype:ftgd_blk", range=86400), results))
 	
 	if args.azure:
-		tasks.append(run_module("azure", get_azure_signinlogs(args)))
+		tasks.append(run_module("azure", get_azure_signinlogs(args), results))
 	
 	if args.defender:
 		try:
@@ -338,9 +344,9 @@ async def main(args):
 				for ipaddr in args.ips:
 					args_copy = argparse.Namespace(**vars(args))
 					args_copy.ip = ''.join(ipaddr)
-					tasks.append(run_module(f"defender_indicators_{ipaddr}", get_indicators(token, args_copy.ip)))
+					tasks.append(run_module(f"defender_indicators_{ipaddr}", get_indicators(token, args_copy.ip), results))
 			elif args.ip:
-				tasks.append(run_module("defender_indicators", get_indicators(token, args.ip)))
+				tasks.append(run_module("defender_indicators", get_indicators(token, args.ip), results))
 			
 			maxdays = 30
 			if args.ips:
@@ -348,10 +354,10 @@ async def main(args):
 					query = f"""let ip = "{ipaddr}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {args.limit} """
 					if args.debug:
 						logger.debug(f"defender query for {ipaddr}: {query}")
-					tasks.append(run_module(f"defender_network_{ipaddr}", search_devicenetworkevents(token, query)))
+					tasks.append(run_module(f"defender_network_{ipaddr}", search_devicenetworkevents(token, query), results))
 			elif args.ip:
 				query = f"""let ip = "{args.ip}";search in (DeviceNetworkEvents) Timestamp between (ago({maxdays}d) .. now()) and (LocalIP == ip or RemoteIP == ip) | take {args.limit} """
-				tasks.append(run_module("defender_network", search_devicenetworkevents(token, query)))
+				tasks.append(run_module("defender_network", search_devicenetworkevents(token, query), results))
 		except (TokenException, DefenderException) as e:
 			logger.error(f'Error getting defender token: {e}')
 	
