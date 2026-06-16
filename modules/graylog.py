@@ -515,7 +515,10 @@ def print_graylog_data(results, args):
 					if 'fgutm' in res_idx:
 						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} {blkcolor}blacklisted: {blacklisted} blksource: {res_msg.get('blksource')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} ")
 					if 'fortitraffic' in res_idx:
-						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} {blkcolor}blacklisted: {blacklisted} blksource: {res_msg.get('blksource')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} dstport:{res_msg.get('dstport')}  tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} ")
+						if res_msg.get('subtype') == 'slb_http':
+							print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} {blkcolor}blacklisted: {blacklisted} blksource: {res_msg.get('blksource')} src:{res_msg.get('src')} dst:{res_msg.get('dst')} http_host:{res_msg.get('http_host')} dst_port:{res_msg.get('dst_port')}  service:{res_msg.get('service')}  http_url:{res_msg.get('http_url')} ")
+						else:
+							print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} subtype:{res_msg.get('subtype')} {Fore.CYAN} action:{res_msg.get('action')} {blkcolor}blacklisted: {blacklisted} blksource: {res_msg.get('blksource')} srcip:{res_msg.get('srcip')} dstip:{res_msg.get('dstip')} dstport:{res_msg.get('dstport')}  tranip:{res_msg.get('tranip')} service: {res_msg.get('service')} url:{res_msg.get('url')} ")
 					elif 'fgvpn' in res_idx:
 						print(f"\t{Fore.BLUE}ts:{res_msg.get('timestamp')} {Fore.GREEN} type:{res_msg.get('type')} {Fore.CYAN} action:{res_msg.get('action')} remip:{res_msg.get('remip')}  msg: {res_msg.get('msg')} {blkcolor}blacklisted: {blacklisted} blksource: {res_msg.get('blksource')} ")
 					elif 'cerberusftp' in res_idx:

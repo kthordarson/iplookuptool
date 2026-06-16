@@ -190,6 +190,7 @@ async def main(args):
 		args.graylog = True
 		args.azure = True
 		args.defender = True
+		args.ftgd_blk = True
 	
 	if args.skip_alienvault:
 		args.alienvault = False
