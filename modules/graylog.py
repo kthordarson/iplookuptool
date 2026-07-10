@@ -28,7 +28,12 @@ IPFIELDS = [
 	'VserverAddress',
 	'ipAddress',
 	'client_ipaddress',
-	'InitiatedByUserIpAddress'
+	'InitiatedByUserIpAddress',
+	'remote_ip',
+	'ipaddr',
+	'ClientIPAddress',
+	'InitiatingProcessRemoteSessionIP',
+	'RemoteIP'
 ]
 
 def format_datetime(input_str):

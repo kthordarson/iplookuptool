@@ -479,6 +479,7 @@ async def process_results(results, args):
 					last_analysis_stats = vtinfo.get("last_analysis_stats", {})
 					last_analysis_results = vtinfo.get("last_analysis_results", {})
 					as_owner = vtinfo.get("as_owner", "None")
+					network = vtinfo.get("network", "None")
 					total_votes = vtinfo.get("total_votes", {})
 					suspicious = last_analysis_stats.get('suspicious')
 					malicious = last_analysis_stats.get('malicious')
@@ -487,7 +488,7 @@ async def process_results(results, args):
 						vtforecolor = Fore.RED
 					else:
 						vtforecolor = Fore.GREEN
-					print(f"{Fore.LIGHTBLUE_EX}vt\t{ipaddr} asowner:{Fore.CYAN} {as_owner} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
+					print(f"{Fore.LIGHTBLUE_EX}vt\t{ipaddr} asowner:{Fore.CYAN} {as_owner} network:{Fore.CYAN} {network} vtvotes: {vtforecolor} malicious: {malicious} suspicious: {suspicious}")
 					for vendor in last_analysis_results:
 						if last_analysis_results.get(vendor).get("category") in ('malware', 'suspicious', "malicious"):
 							print(f"{Fore.BLUE}\t{vendor} {Fore.CYAN} result:{Fore.RED}{last_analysis_results.get(vendor).get('result')} {Fore.LIGHTBLUE_EX}{last_analysis_results.get(vendor).get('method')} ")
