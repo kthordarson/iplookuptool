@@ -11,7 +11,7 @@ except ImportError as e:
 	logger.error(f'missing virustotal package {e} {type(e)}')
 	os._exit(-1)
 
-async def get_virustotal_info(args):
+async def get_virustotal_info(args) -> dict:
 	if not VTAPIKEY:
 		logger.warning("missing virustotal api key")
 		return {}
@@ -24,7 +24,7 @@ async def get_virustotal_info(args):
 				return jsonresults['data']['attributes']
 	except Exception as e:
 		logger.error(f'[!] {e} {type(e)} addr: {args.ip}')
-		return None
+		return {}
 
 async def get_virustotal_comments(ipaddr, limit=10):
 	if not VTAPIKEY:

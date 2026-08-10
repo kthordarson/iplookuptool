@@ -1,25 +1,44 @@
 #!/usr/bin/env python3
-import traceback
-import asyncio
 import argparse
+import asyncio
 import json
-from loguru import logger
-from colorama import Fore, Style
+import traceback
 from ipaddress import ip_address
-from modules.virustotal import (get_virustotal_scanurls, get_virustotal_urlinfo, get_vt_ipinfo)
-from modules.abuseipdb import get_abuseipdb_data
-from modules.ipwhois import get_ipwhois
-from modules.graylog import graylog_search, graylog_search_ip, print_graylog_summary, print_graylog_data
-from modules.defender import (get_aad_token, search_devicenetworkevents, get_indicators, DefenderException, TokenException, search_remote_url)
-from modules.azurelogs import get_azure_signinlogs
-from modules.ip2loc import get_ip2loc_data
-from modules.ipinfoio import get_ipinfo
-from modules.urlscanio import search_urlscanio
-from modules.crowdsec import get_crowdsec_data
-from modules.alienvault import get_alienvault_data
-from modules.pulsedrive import get_pulsedrive_data
 
 import urllib3
+from colorama import Fore, Style
+from loguru import logger
+
+from modules.abuseipdb import get_abuseipdb_data
+from modules.alienvault import get_alienvault_data
+from modules.arin import get_arin_as_info, get_ripe_info, get_ipguide_info
+from modules.azurelogs import get_azure_signinlogs
+from modules.crowdsec import get_crowdsec_data
+from modules.defender import (
+	DefenderException,
+	TokenException,
+	get_aad_token,
+	get_indicators,
+	search_devicenetworkevents,
+	search_remote_url,
+)
+from modules.graylog import (
+	graylog_search,
+	graylog_search_ip,
+	print_graylog_data,
+	print_graylog_summary,
+)
+from modules.ip2loc import get_ip2loc_data
+from modules.ipinfoio import get_ipinfo
+from modules.ipwhois import get_ipwhois
+from modules.pulsedrive import get_pulsedrive_data
+from modules.urlscanio import search_urlscanio
+from modules.virustotal import (
+	get_virustotal_info,
+	get_virustotal_scanurls,
+	get_virustotal_urlinfo,
+	get_vt_ipinfo,
+)
 
 urllib3.disable_warnings()
 
@@ -43,7 +62,13 @@ urllib3.disable_warnings()
 def get_args():
 	parser = argparse.ArgumentParser(description="ip address lookup")
 	sub_parser = parser.add_subparsers(dest='action', help='Action to perform')
+
 	ip_parser = sub_parser.add_parser('ip', help='Lookup information about an IP address')
+
+	cidr_parser = sub_parser.add_parser('cidr', help='Lookup information about a CIDR block')
+	cidr_parser.add_argument("-ip", help="ipaddress/host to lookup", type=str, metavar="ipaddr", required=False)
+	cidr_parser.add_argument("-asn", help="autonomous system number to lookup", type=str, metavar="asn", required=False)
+
 	ip_parser.add_argument("-ip", help="ipaddress/host to lookup", type=str, metavar="ipaddr")
 	ip_parser.add_argument("-ipfile", help="filename containing ipaddresses/hosts to lookup", type=str, metavar="filename")
 	ip_parser.add_argument("-ips", help="list of ipaddress/host to lookup", type=list, default=[], metavar="ipaddrlist", nargs='+')
@@ -119,7 +144,7 @@ async def run_module(module_name, coro, results):
 		result = await coro
 		results[module_name] = result
 		return result
-	except Exception as e:
+	except Exception as e:  # noqa: BLE001
 		logger.error(f"{type(e)} in {module_name}: {e}")
 		results[module_name] = None
 		return None
@@ -169,6 +194,43 @@ async def main(args):
 					logger.error(f"[!] unhandled {e} {type(e)} for address {ip}")
 					raise e
 			args.ips = temp_ips
+	elif args.action == 'cidr':
+		ipguide_info = None
+		vtinfo = None
+		ripe_info = None
+		arin_info = None
+		# todo finish
+		if args.ip:
+			ipaddress = ip_address(args.ip).exploded
+			vtinfo = await get_virustotal_info(args)
+			ripe_info = await get_ripe_info(args.ip)  # type: ignore
+			asn = str(vtinfo['asn'])
+			logger.debug(f'fetching data for asn: {asn}')
+			arin_info = await get_arin_as_info(asn)  # type: ignore
+			ipguide_info = await get_ipguide_info(asn)  # type: ignore
+		elif args.asn:
+			arin_info = await get_arin_as_info(args.asn)  # type: ignore
+			ipguide_info = await get_ipguide_info(args.asn)  # type: ignore
+		if ipguide_info:
+			print(f'{Fore.LIGHTGREEN_EX}ip.guide found {Fore.GREEN}{len(ipguide_info['routes']['v4'])} v4 routes for {args.asn} {Style.RESET_ALL}')  # type: ignore
+		if arin_info:
+			print(f'{Fore.LIGHTGREEN_EX}arin_info {Fore.GREEN}{arin_info['name']} {arin_info['handle']} {Style.RESET_ALL}')  # type: ignore
+		print(f"{Fore.GREEN}{vtinfo['asn']}vtinfo: {vtinfo['as_owner']}{Style.RESET_ALL}")  # type: ignore
+		print(f"\t{Fore.BLUE}{vtinfo['network']}{Style.RESET_ALL}")  # type: ignore
+		if 'rdap' in vtinfo and 'cidr0_cidrs' in vtinfo['rdap']:  # type: ignore
+			cidr_list = vtinfo['rdap']['cidr0_cidrs']  # type: ignore
+			for cidr in cidr_list:
+				prefix = cidr['v4prefix']
+				prefix_mask = cidr['length']
+				print(f"\t{Fore.LIGHTBLUE_EX}{prefix}/{prefix_mask}{Style.RESET_ALL}")
+		if ripe_info:
+			print(f"{Fore.GREEN}ripe_info asn: {args.asn} {ripe_info['name']}{Style.RESET_ALL}")  # type: ignore
+			if 'cidr0_cidrs' in ripe_info:  # type: ignore
+				cidr_list = ripe_info['cidr0_cidrs']  # type: ignore
+				for cidr in cidr_list:
+					prefix = cidr['v4prefix']
+					prefix_mask = cidr['length']
+					print(f"\t{Fore.LIGHTBLUE_EX}{prefix}/{prefix_mask}{Style.RESET_ALL}")
 	
 	if args.all:
 		args.dnsdumpster = True
